@@ -1,0 +1,21 @@
+---
+title: "Joe.permanova_7.15.21"
+author: "Joe Duprey"
+date: "7/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r Dependencies, include=FALSE}
+library(tidyverse)
+library(vegan)
+```
+
+Import Helen's output table 
+```{r}
+reads.by.trep <- read.csv('../data/Helen.output.table.csv')
+tib.reads.by.trep <- nest(reads.by.trep, data=c(BIOrep,Hash,X1,X2,X3))
+```
+
