@@ -24,7 +24,7 @@ First, I'll copy Ramon's code to figure out how many sets of 2 PCR replicates pr
 
 
 ```{r Checking for Replicate Sets}
-cleaned.tibble <- read.csv("/Users/helencasendino/Documents/cleaned.tibble.csv")
+cleaned.tibble <- read.csv("../data/cleaned.tibble.csv")
 cleaned.tibble<- cleaned.tibble[,-1] # Remove row indices column 
 
 cleaned.tibble %>% 
