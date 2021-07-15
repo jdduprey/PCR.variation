@@ -16,7 +16,7 @@ tech1 <- ASV.table %>%
   rename(tech1reads=nReads)# %>%
   #select(-c(1:4))
 
-reads.avg <- ASV.table %>%
+by.tech.table <- ASV.table %>%
   separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE) %>%
   select(bio, tech, Hash, nReads) %>%
   pivot_wider(names_from=tech, values_from=nReads, values_fill=0)
