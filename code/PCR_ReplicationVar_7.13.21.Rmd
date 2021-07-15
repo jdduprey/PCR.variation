@@ -205,3 +205,8 @@ So the goal was to model the distributions of SDs between the 4 combinations of 
 
 Then, to compare how using 1, 2, or 3 samples changes average number of reads, we can get means of nReads across PCR replicates depending on combination. Ie, create rarefaction curves (and subsequent average nReads) for each duplicate (1&2, 2&3, 1&3) and triplicate set, and look at how these compare to the value of one PCR replicate (1, 2, or 3) to see the margin of error in only using one. 
 
+```{r}
+Helen.output.table <- unnest(nested_trip_c.t, cols=c(data))
+write_csv(Helen.output.table, '../data/Helen.output.table.csv')
+```
+
