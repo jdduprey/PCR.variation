@@ -13,9 +13,9 @@ library(tidyverse)
 library(vegan)
 ```
 
-Import Helen's output table 
+Import Helen's output table and renest it! 
 ```{r}
 reads.by.trep <- read.csv('../data/Helen.output.table.csv')
-tib.reads.by.trep <- nest(reads.by.trep, data=c(BIOrep,Hash,X1,X2,X3))
+reads.by.trep <- nest(reads.by.trep, data=c(BIOrep,Hash,X1,X2,X3))
 ```
 
