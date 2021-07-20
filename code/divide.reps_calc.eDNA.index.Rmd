@@ -1,7 +1,7 @@
 ---
-title: "bray-curtis with eDNA index on raw OA study ASVs"
-author: "Joe Duprey"
-date: "7/19/2021"
+title: "Dividing OA PCR replicates and calculating eDNA index by replicate"
+author: "Joe Duprey, Helen Casendino"
+date: "7/20/2021"
 output: html_document
 ---
 
@@ -11,22 +11,18 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r Dependencies, include=FALSE}
 library(tidyverse)
 library(vegan)
-source('./eDNA_index.r')
+source('./eDNA_index.r') #Moncho's script
 
 ```
 
-Import raw ASV's from OA project. This data is the input data to Moncho's original workflow 
+Import raw ASV's from OA project. This data is the input data to Moncho's original workflow. None of his QA steps have been applied to the raw.ASVs data table. 
 
 ```{r load data, create technical and bio replicate columns }
 raw.ASVs <- read.csv('../input/raw_ASVs.csv')
 
-raw.ASVs %>% 
-  group_by() %>% 
-  filter(n()>1)
-
 by.tech.table <- raw.ASVs %>%
   filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
-  filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo
+  filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
   separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE)
 
 # are there repeats?
@@ -39,7 +35,7 @@ Using Moncho's handy eDNAindex function
 
 ```{r calculate eDNA index}
 # might need to double check this syntax
-# this won't work, need to calculate eDNA index after splitting into 
+# this won't work? need to calculate eDNA index after splitting into 
 # technical replicates, because read depth will vary! 
 # by.tech.table <- eDNAindex(by.tech.table, sample, Hash, nReads, bio)
 
