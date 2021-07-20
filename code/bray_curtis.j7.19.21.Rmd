@@ -100,6 +100,25 @@ clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
                                     nReads='PCR2_reads', new_name='PCR2_index')
 clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
                                     nReads='PCR3_reads', new_name='PCR3_index')
+
+# is it okay to change these to zeros!? 
+#clean.tech.table <- clean.tech.table %>% 
+#  replace(is.na(.), 0)
+
+write_csv(clean.tech.table, '../data/clean.tech.table.csv')
 ```
 
+Use Ryan's check for correct eDNA index 
+
+```{r}
+index.check <- clean.tech.table %>% 
+  group_by(Hash) %>% 
+  summarize(max(PCR1_index),
+            min(PCR1_index))
+
+unique(index.check$'max(PCR1_index)')
+```
+```{r}
+# nest.table <- nest(clean.tech.table, data=c(Hash, PCR1_reads, PCR2_reads, PCR3_reads, PCR1_index, PCR2_index, PCR3_index))
+```
 
