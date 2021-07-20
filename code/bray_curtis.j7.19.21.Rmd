@@ -1,7 +1,7 @@
 ---
-title: "Joe.permanova_7.15.21"
+title: "bray-curtis with eDNA index on raw OA study ASVs"
 author: "Joe Duprey"
-date: "7/15/2021"
+date: "7/19/2021"
 output: html_document
 ---
 
@@ -11,11 +11,95 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r Dependencies, include=FALSE}
 library(tidyverse)
 library(vegan)
+source('./eDNA_index.r')
+
 ```
 
-Import Helen's output table and renest it! 
-```{r}
-reads.by.trep <- read.csv('../data/Helen.output.table.csv')
-reads.by.trep <- nest(reads.by.trep, data=c(BIOrep,Hash,X1,X2,X3))
+Import raw ASV's from OA project. This data is the input data to Moncho's original workflow 
+
+```{r load data, create technical and bio replicate columns }
+raw.ASVs <- read.csv('../input/raw_ASVs.csv')
+
+raw.ASVs %>% 
+  group_by() %>% 
+  filter(n()>1)
+
+by.tech.table <- raw.ASVs %>%
+  filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
+  filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo
+  separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE)
+
+# are there repeats?
+by.tech.table %>%
+  group_by(sample, bio, tech, Hash, nReads) %>%
+  filter(n()>1)
 ```
+
+Using Moncho's handy eDNAindex function 
+
+```{r calculate eDNA index}
+# might need to double check this syntax
+# this won't work, need to calculate eDNA index after splitting into 
+# technical replicates, because read depth will vary! 
+# by.tech.table <- eDNAindex(by.tech.table, sample, Hash, nReads, bio)
+
+```
+
+Using the code that Ryan used, check to see if eDNA index worked
+
+```{r eDNA index check}
+# index.check <- by.tech.table %>% 
+#   group_by(Hash) %>% 
+#   summarize(max(Normalized.reads),
+#             min(Normalized.reads))
+# 
+# unique(index.check$'max(Normalized.reads)')
+```
+
+For now we are going to get rid of sets of PCR replicates with only 2
+
+```{r get to clean table with separate technical replicates}
+three_reps <- by.tech.table %>%
+  group_by(bio) %>%
+  summarise(nrep = n_distinct(bio, tech)) %>%
+  filter(nrep == 3)
+
+clean.tech.table <- by.tech.table %>%
+  filter(bio %in% three_reps$bio)
+
+clean.tech.table <- clean.tech.table %>%  
+   select(bio, tech, Hash, nReads) %>%
+   pivot_wider(names_from=tech, values_from=nReads, values_fill=0)
+
+```
+
+Now we need to calculate eDNA index for each column, and rename the columns to something more clear
+
+```{r}
+#rename PCR replicate columns 
+clean.tech.table <- clean.tech.table %>%
+  rename('PCR1_reads'='1', 'PCR2_reads'='2', 'PCR3_reads'='3')
+
+calc_eDNA_index <- function(df, nReads, new_name) { #nReads is a colomn name 
+  df <- df %>%
+    group_by(bio) %>% 
+    mutate(totalReads = sum(.data[[nReads]]),
+          propReads = .data[[nReads]]/totalReads) %>% 
+    group_by(Hash) %>% 
+    mutate(eDNA_index = propReads/(max(propReads))) %>%
+    rename(!!new_name := eDNA_index) %>% 
+    select(-c(propReads, totalReads))
+    
+  
+  return(df)
+} 
+
+clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
+                                    nReads='PCR1_reads', new_name='PCR1_index')
+clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
+                                    nReads='PCR2_reads', new_name='PCR2_index')
+clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
+                                    nReads='PCR3_reads', new_name='PCR3_index')
+```
+
 
