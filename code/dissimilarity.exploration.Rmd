@@ -1,0 +1,48 @@
+---
+title: "Exploring various methods of assessing dissimilarity between communities within different PCR replicates"
+author: "Joe Duprey, Helen Casendino"
+date: "7/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r Dependencies, include=FALSE}
+library(tidyverse)
+library(vegan)
+```
+
+Our broad goal here is to try 3 different methods — Jaccard, Bray-Curtis, and Beta Diversity — to quantify dissimilarity in the "communities" of PCR replicates 1, 2 and 3. 
+
+We start with clean.tech.table.csv (from divide.reps_calc.eDNA.index.Rmd), which includes triplicates, not duplicates. Joe and I think the eDNA index function used isn't perfect yet, but we'll work with it for now. 
+
+```{r Load data}
+indexed.reads <- read.csv("../data/clean.tech.table.csv")
+```
+
+Step 1: Try Bray Curtis 
+
+First, convert to community matrix.
+
+```{r data to matrix}
+index.reads <- indexed.reads[,6:8] # only eDNA index values
+index.mat<- t(index.reads) # columns = PCR rep number, rows = Hashes, values = nReads
+```
+
+
+"na.rm = Pairwise deletion of missing observations when computing dissimilarities." For the BC test, we should probably remove whole observations where one value is NA. When a value is NA, pretty sure it means that the Hash in question was not present in any of the bottles within that specific PCR replicate (1, 2 or 3), and was only found in the other two PCR sets. 
+
+```{r BC test}
+vegdist(index.mat, method="bray", na.rm = T)
+```
+
+All yielding pretty similar BC values (~0.63)
+
+Step 2: Try Beta Diversity
+
+Working on figuring this out...why the NAs? 
+
+```{r Beta Div test}
+betadiver(index.mat, method = 1)
+```
