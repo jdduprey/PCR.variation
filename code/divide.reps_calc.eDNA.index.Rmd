@@ -86,43 +86,49 @@ clean.tech.table <- clean.tech.table %>%
 # ===================================================
 calc_eDNA_index <- function(df, nReads, new_name) { 
   df <- df %>%
-    group_by(bio) %>% # read depth
+    group_by(bio) %>% # "convert read counts to proportion with biological sample" 
     mutate(totalReads = sum(.data[[nReads]]),
           propReads = .data[[nReads]]/totalReads) %>% 
-    group_by(Hash) %>% 
-    mutate(eDNA_index = propReads/(max(propReads))) %>%
-    rename(!!new_name := eDNA_index) %>% 
-    select(-c(propReads, totalReads))
     
-  
+    group_by(Hash) %>% # "scale the resulting proportion to the largest observed proportion across samples"
+    mutate(eDNA_index = propReads/(max(propReads))) %>%
+    rename(!!new_name := eDNA_index) %>% # rename the new column
+    select(-c(propReads, totalReads)) # delete the columns from the df that the function uses to calculate index 
+    
   return(df)
 } 
 
+# calculate eDNA index for 1st PCR replicate 
 clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
                                     nReads='PCR1_reads', new_name='PCR1_index')
+
+# calculate eDNA index for 2nd PCR replicate 
 clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
                                     nReads='PCR2_reads', new_name='PCR2_index')
+
+# calculate eDNA index for 3rd PCR replicate 
 clean.tech.table <- calc_eDNA_index(df=clean.tech.table,
                                     nReads='PCR3_reads', new_name='PCR3_index')
 
-# is it okay to change these to zeros!? 
+# The resulting clean.tech.table has NAs, this is due to hashes appearing 0 times in some PCR reps? 
+# is it okay to change these to zeros? For now we'll keep them as NAs 
+
 #clean.tech.table <- clean.tech.table %>% 
 #  replace(is.na(.), 0)
 
+# write our beautiful table to data folder 
 write_csv(clean.tech.table, '../data/clean.tech.table.csv')
 ```
 
-Use Ryan's check for correct eDNA index 
+Use Ryan's check for correct eDNA index
+Ryan quote "you can check this: each species should have a min of 0, a max of 1, and should have at least a single `1` in its observations" 
 
 ```{r}
+
 index.check <- clean.tech.table %>% 
   group_by(Hash) %>% 
   summarize(max(PCR1_index),
             min(PCR1_index))
 
-unique(index.check$'max(PCR1_index)')
+unique(index.check$'max(PCR1_index)') # so the max for all Hashes is either NA or 1, which we think makes sense 
 ```
-```{r}
-# nest.table <- nest(clean.tech.table, data=c(Hash, PCR1_reads, PCR2_reads, PCR3_reads, PCR1_index, PCR2_index, PCR3_index))
-```
-
