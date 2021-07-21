@@ -26,23 +26,23 @@ Step 1: Try Bray Curtis
 First, convert to community matrix.
 
 ```{r data to matrix}
-BC.reads <- indexed.reads[,6:8] # only eDNA index values
-BC.mat<- t(BC.reads) # columns = PCR rep number, rows = Hashes, values = nReads
+index.reads <- indexed.reads[,6:8] # only eDNA index values
+index.mat<- t(index.reads) # columns = PCR rep number, rows = Hashes, values = nReads
 ```
 
 
 "na.rm = Pairwise deletion of missing observations when computing dissimilarities." For the BC test, we should probably remove whole observations where one value is NA. When a value is NA, pretty sure it means that the Hash in question was not present in any of the bottles within that specific PCR replicate (1, 2 or 3), and was only found in the other two PCR sets. 
 
 ```{r BC test}
-vegdist(BC.mat, method="bray", na.rm = T)
+vegdist(index.mat, method="bray", na.rm = T)
 ```
 
 All yielding pretty similar BC values (~0.63)
 
-
-
 Step 2: Try Beta Diversity
 
+Working on figuring this out...why the NAs? 
+
 ```{r Beta Div test}
-vegan::betadiver(dataset, method = 1)
+betadiver(index.mat, method = 1)
 ```
