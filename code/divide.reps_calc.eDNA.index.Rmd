@@ -22,9 +22,17 @@ raw.ASVs <- read.csv('../input/raw_ASVs.csv')
 by.tech.table <- raw.ASVs %>%
   filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
   filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
+<<<<<<< HEAD
+  filter(str_detect(sample, "K+", TRUE)) %>%  # remove negative control (??) samples
+  filter(str_detect(sample, "k+", TRUE)) %>% 
+  separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE)
+ 
+# are there repeats?
+=======
   separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE) # divide sample into technical and bio reps
 
 # check for repeats 
+>>>>>>> c224c9a966cb5a93c424bc52f9b9e4bdd3422d75
 by.tech.table %>%
   group_by(sample, bio, tech, Hash, nReads) %>%
   filter(n()>1)
