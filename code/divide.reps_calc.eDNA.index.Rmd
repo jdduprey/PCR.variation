@@ -26,12 +26,7 @@ by.tech.table <- raw.ASVs %>%
   filter(str_detect(sample, "k+", TRUE)) %>% 
   separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE)
  
-# are there repeats?
-
-  separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE) # divide sample into technical and bio reps
-
 # check for repeats 
-
 by.tech.table %>%
   group_by(sample, bio, tech, Hash, nReads) %>%
   filter(n()>1)
