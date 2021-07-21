@@ -1,0 +1,212 @@
+---
+title: "PCR_ReplicateVar_HC"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r Dependencies, include=FALSE}
+library(tidyverse)
+```
+
+## Looking at variation in the PCR replicates of Ramon's OA dataset
+
+By line 505 of Denoising.all.runs.Rmd, we have a table called cleaned.tibble that contains all hashes & nReads for each sampling_event/bio_replicate/PCR_replicate combination FOR each MiSeq run (8 in this dataset). These hashes are clean (ie, they're real samples, they yielded enough sequences, and they passed occupancy test). 
+
+*Note: To get cleaned.tibble, run Denoising.all.runs.Rmd up to line 505 and download cleaned.tibble as a csv. On line of 26 of this document, you'll have to change the directory to access the .csv file you downloaded. Is there a better way I should do this?*
+
+### Removing PCR replicate sets of 2 (for now)
+First, I'll copy Ramon's code to figure out how many sets of 2 PCR replicates present (instead of 3). 
+
+
+
+```{r Checking for Replicate Sets}
+cleaned.tibble <- read.csv("../data/cleaned.tibble.csv")
+cleaned.tibble<- cleaned.tibble[,-1] # Remove row indices column 
+
+cleaned.tibble %>% 
+  group_by(original_sample) %>% 
+  summarise(nrep = n_distinct(sample)) %>% 
+  filter (nrep == 2) %>% # 9
+  filter (nrep == 1) # 0 
+
+```
+
+
+For now, I'll delete the ones that only have 2. Include them later.
+
+
+```{r Removing Sets of 2}
+duplicate_PCRs <- cleaned.tibble %>% 
+  group_by(original_sample) %>% 
+  summarise(nrep = n_distinct(sample)) %>% 
+  filter (nrep == 2) 
+
+duplicate_rows <- c(NA)
+        for(i in 1:length(duplicate_PCRs$original_sample)){
+         duplicate_rows <- append(duplicate_rows, grep(duplicate_PCRs[[i,1]], cleaned.tibble$original_sample, value = F))
+        }
+duplicate_rows <- duplicate_rows[-1] # all rows in cleaned.tibble of sample/bioreplicates that have duplicate PCR
+
+trip_cleaned.tibble<- cleaned.tibble[-(duplicate_rows),]
+```
+
+
+### Sorting nReads of Hash Numbers by PCR rep number for each BioReplicate
+
+To make data more manageable, I want to group the Hash numbers by original_sample (bio replicate). I'm removing information about the MiSeq runs because it seems like PCR replicates for the same Bio Replicate are spread across MiSeq runs. 
+
+First, I'll check to see if bioreplicates/PCRreplicates are duplicated across MiSeq runs (hope not!). This is what Moncho said: *"I run two Miseq runs in which technical replicates were split across them, so you can check whether there is an outrageous run effect. Luckily there was not. I think Emily Jacobs-Palmer took this one step further by resequencing some samples between runs"* I'm most curious about whether samples are resequenced (possibly duplicated?) between runs. 
+
+
+```{r Checking for duplicates across MiSeq runs}
+for(i in 1:length(trip_cleaned.tibble$Miseq_run)){
+ if(length(unique(trip_cleaned.tibble[which(trip_cleaned.tibble$sample == trip_cleaned.tibble[i,2]),1])) != 1){
+   print(c(i))
+ }
+}
+```
+
+Yay! There are no PCR replicates that are present in multiple MiSeq runs. So we can continue. 
+
+```{r Grouping data by Miseq_run and original sample}
+trip_c.t.noMiS <- trip_cleaned.tibble[,-1]
+nested_trip_c.t <-trip_c.t.noMiS %>% nest(data = c(sample,Hash,nReads))
+```
+
+
+For each tibble in nested_trip_c.t (corresponding to MiSeq + Sampling Event + Biological Replicate combination), I separate nReads for each Hash by PCR replicate number. ***Checking for Normalcy*** I'm not sure the best way to go about this yet, but I wil also check whether or not the nReads between PCR replicates for each hash is normally distributed. I'll use the Shapiro-Wilk's test here, but I think most normalcy tests have low statistical power for small sample sizes. Hm. 
+
+
+```{r Sorting Hash Numbers into PCR Replicate Columns & And Evaluating for Normal Dist}
+# Separating nReads of each Hash number into triplicate number
+for(i in 1:length(nested_trip_c.t$original_sample)){
+  nested_trip_c.t[[i,2]][[1]] <- nested_trip_c.t[[i,2]][[1]] %>% separate(sample, into=c("BIOrep","PCRrep"), sep = "\\.") %>% pivot_wider(names_from = PCRrep, values_from = nReads, values_fill = 0)
+}
+
+# Test to make sure every original_sample (Bio Replicate) has 3 PCR replicates
+for(j in 1:length(nested_trip_c.t$original_sample)){
+  if(ncol(nested_trip_c.t[[j,2]][[1]]) !=5){
+    print(c(j, ncol(nested_trip_c.t[[j,3]][[1]])))
+  }
+}
+
+# Evaluating for normalcy (For every tibble, prints out row indices of PCR triplicates that fail normalcy test)
+nonNormProp <- data.frame(rowNum = rep(NA, length(nested_trip_c.t$original_sample)), nonNorm_proportion= rep(NA, length(nested_trip_c.t$original_sample)))
+for(j in 1:length(nested_trip_c.t$original_sample)){
+  HashTibble <- nested_trip_c.t[[j,2]][[1]]
+  nonNormal<- c(NA)
+  
+  for(i in 1:length(HashTibble$BIOrep)){
+   
+     if(identical(HashTibble[[i,3]],HashTibble[[i,4]]) == F && identical(HashTibble[[i,4]],HashTibble[[i,5]]) == F){
+         p <- shapiro.test(as.numeric(HashTibble[i,c(3:5)]))$p.value
+          if(p <= 0.05){
+            nonNormal <- append(nonNormal, i) # Get row indices of non-normalcy for each tibble 
+          }
+        }
+  }
+   nonNormProp[j,1] <- j
+   nonNormProp[j,2] <- length(nonNormal)/length(HashTibble$BIOrep)
+}
+
+mean(nonNormProp$nonNorm_proportion)
+
+```
+
+
+So around 1/5 of PCR triplicates are NOT normally distributed ...but then again n=3 Maybe standard deviation is not the best metric (for non-normality). But for now we'll move ahead with it. 
+
+
+### Comparing Standard Deviation in nReads of Triplicates Between Different Resampling Sets
+
+I'll take the SD of PCR nReads for each Hash (corresponding to a particular bio replicate), and resample with different numbers of triplicates to see how much the SD changes. We have 4 options of triplicate combinations: 1&2, 2&3, 1&3, or 1&2&3. 
+Because we obviously can't take the SD of 1 replicate, we could do Bray-Curtis difference of community composition within 1 biological replicate based on how many PCR replicates were used. Here, we could look at the effect of using just 1 PCR replicate. But save that for later. 
+
+```{r SD of different PCR replicate # combinations}
+
+# Get SD of each PCR replicate combination for each biological replicate
+for(j in 1:length(nested_trip_c.t$original_sample)){
+# Add columns for SD of each replicate combination
+nested_trip_c.t[[j,2]][[1]] <- nested_trip_c.t[[j,2]][[1]] %>% mutate("1_2" = rep(NA,length(nested_trip_c.t[[j,2]][[1]]$BIOrep))) %>% mutate("2_3" = rep(NA,length(nested_trip_c.t[[j,2]][[1]]$BIOrep))) %>% mutate("1_3" = rep(NA,length(nested_trip_c.t[[j,2]][[1]]$BIOrep))) %>% mutate("1_2_3" = rep(NA,length(nested_trip_c.t[[j,2]][[1]]$BIOrep))) 
+
+nested_trip_c.t[[j,2]][[1]][,6:9] <- lapply(nested_trip_c.t[[j,2]][[1]][,6:9], as.numeric)
+
+  # Input SD into columns of each replicate combination
+  for(i in 1:length(nested_trip_c.t[[j,2]][[1]]$BIOrep)){
+  
+         nested_trip_c.t[[j,2]][[1]][[i,6]] <-   sd(c(nested_trip_c.t[[j,2]][[1]][[i,3]],nested_trip_c.t[[j,2]][[1]][[i,4]]))
+  
+  nested_trip_c.t[[j,2]][[1]][[i,7]] <- sd(c(nested_trip_c.t[[j,2]][[1]][[i,4]],nested_trip_c.t[[j,2]][[1]][[i,5]]))
+  
+   nested_trip_c.t[[j,2]][[1]][[i,8]] <- sd(c(nested_trip_c.t[[j,2]][[1]][[i,3]],nested_trip_c.t[[j,2]][[1]][[i,5]]))
+  
+ nested_trip_c.t[[j,2]][[1]][[i,9]] <- sd(c(nested_trip_c.t[[j,2]][[1]][[i,3]], nested_trip_c.t[[j,2]][[1]][[i,4]],nested_trip_c.t[[j,2]][[1]][[i,5]]))
+  }
+print(j)
+}
+
+```
+
+Now I want to get an idea of how the SD differed, on average, between the different resampled combinations (1&2, 2&3, 1&3, or 1&2&3). 
+
+```{r Visualizing distribution of SD between different PCR replicate # combinations}
+unnested_trip_c.t <- nested_trip_c.t %>% unnest(data) %>% select(-BIOrep)
+
+# Get average SD for each combo, assuming normal distribution
+lapply(unnested_trip_c.t[,6:9], mean)
+
+# Visualize SD distribution for each combo. 
+par(mfrow=c(2,2))
+lapply(unnested_trip_c.t[,6:9], hist)
+
+# Not normal! Data might fit a gamma distribution...
+
+```
+
+#### NEXT STEP: Get parameters for SD gamma distributions
+Use Optim to get optimal parameters for gamma distribution of SD values for each combination. From here, we can compare means between the four combinations. 
+
+**Some issues:**
+1. our 0s. Samples that had the same number of nReads for all 3 PCR reps have an SD of 0, which the gamma distribution can't handle. I'm thinking a feasible way to deal this might be to change these 0s to a *super* small SD, like 0.000001, just so we can use the gamma distribution. 
+
+*Something to think about* should an SD of 0 due to reads of 0 (absence) be analyzed differently than an SD of 0 due to 3 equal, positive integers (presence)? 
+
+```{r Convert 0s}
+
+# First Check what global minimum is of combinations: 0.577
+min(min(unnested_trip_c.t[unnested_trip_c.t$"1_2" !=0,6]), min(unnested_trip_c.t[unnested_trip_c.t$"2_3" !=0,7]),
+min(unnested_trip_c.t[unnested_trip_c.t$"1_3" !=0,8]),
+min(unnested_trip_c.t[unnested_trip_c.t$"1_2_3" !=0,9]))
+
+# So let's convert 0s to 1e-25
+unnested_trip_c.t[which(unnested_trip_c.t$"1_2"==0),6] <- 1*10^(-25)
+
+
+```
+
+```{r Get gamma distribution params for 1_2 combination}
+GammaNLL <- function(pars, data){
+  alpha <- pars[[1]]
+  theta <- pars[[2]]
+  return (-sum(dgamma(data, shape = alpha, scale = theta, log = TRUE)))
+}
+
+fit <- optim(par=c(1,100), fn=GammaNLL, method="Nelder-Mead", data=unnested_trip_c.t$"1_2")
+fit$par
+# several starting points yield ~ alpha = 0.0646 and theta = 2022
+
+```
+
+So the goal was to model the distributions of SDs between the 4 combinations of PCR replicates so that I could calculate a mean of variation for each combo (a non-normal mean that would actually make sense for the data). But it seems like the better approach (see tides paper) is to calculate Bray Curtis Dissimilarity for each set of PCR replicates (one bio replicate), and see how these dissimilarities change based on whether you use two (1&2, 2&3, 1&3) or all three replicates.
+
+Then, to compare how using 1, 2, or 3 samples changes average number of reads, we can get means of nReads across PCR replicates depending on combination. Ie, create rarefaction curves (and subsequent average nReads) for each duplicate (1&2, 2&3, 1&3) and triplicate set, and look at how these compare to the value of one PCR replicate (1, 2, or 3) to see the margin of error in only using one. 
+
+```{r}
+Helen.output.table <- unnest(nested_trip_c.t, cols=c(data))
+write_csv(Helen.output.table, '../data/Helen.output.table.csv')
+```
+
