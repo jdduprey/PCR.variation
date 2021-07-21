@@ -63,7 +63,9 @@ bray_by_sample(full.indexed.reads, unique(full.indexed.reads$bio), c(6:8))
 I don't want to overfocus on variability between samples, because that's not what we're interested in. So maybe the chunk above is totally obsolete. However, I wonder if doing a permanova between the three *distributions* of BCDs (separated by sample) is more informative than just looking at 3 BCD values (for each PCR combination, across samples). ????
 
 ```{r PERMANOVA on 3 BCD distributions}
+bray.output <-   bray_by_sample(full.indexed.reads, unique(full.indexed.reads$bio), c(6:8))
 
+adonis(formula = .x ~ Area,data = bray.PCR.dists, permutations = 9999)
 
 ```
 
