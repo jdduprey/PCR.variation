@@ -84,11 +84,10 @@ colnames(bray.perm) <- c("PCR.Combo", "BCD")
 adonis(BCD ~ PCR.Combo,data = bray.perm, permutations = 9999)
 ```
 
+Hm p value of 0.4238. So at very first glance, reads don't differ that much between PCR replicates. But I still need to learn more about the adonis function to see if this is an appropriate test. 
 
 
 Step 2: Try Beta Diversity
-
-Working on figuring this out...why the NAs? 
 
 ```{r Beta Div test}
 betadiver(index.mat, method = 1)
