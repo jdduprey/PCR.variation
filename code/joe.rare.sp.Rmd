@@ -1,0 +1,75 @@
+---
+title: "joe.rareSp"
+author: "Helen Casendino, Joe Duprey"
+date: "7/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(vegan)
+# source("dissimilarity.exploration.Rmd")
+```
+
+
+```{r load data}
+full.proportion.reads <- read.csv('../data/PCR.proportions.csv')
+```
+
+```{r}
+full.proportion.long <- full.proportion.reads %>%
+  pivot_longer(cols=c('X1','X2','X3'), names_to='tech',values_to='PropRead')
+```
+
+```{r}
+# don't know how to import function from Rmd
+bray_by_sample <- function(df, bioVector, indexCols){  
+  
+    bray.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c(1.2,2.3,1.3))) # different PCR rep combinations
+  
+  for(i in 1:length(bioVector)){
+    sample.tib <- df[df$bio == bioVector[i],indexCols]
+    bray.tib <- t(sample.tib)
+    bray.results <- as.matrix(vegdist(bray.tib, method="bray", na.rm = T))
+    bray.mat[i,] <- c(bray.results[1,2], bray.results[3,2], bray.results[1,3]) # PCR 1&2, 2&3, 1&3
+  }
+    return(bray.mat)
+}
+
+```
+
+
+```{r}
+filter_by_prop <- function(df, proportion_cutoff) {
+  
+  filtered.df <- df %>%
+    filter(df$PropRead >= proportion_cutoff) 
+    
+  filtered.df <- filtered.df %>%  
+    select(Miseq_run, bio, tech, Hash, PropRead) %>%
+    pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) 
+    
+  print(dim(filtered.df))  
+  
+  filtered.df <- filtered.df %>%  
+    filter(X1 != 0 | X2 !=0 | X3 != 0)
+  
+  print(dim(filtered.df))  
+  
+  # Helen's code for getting matrix into rright format 
+  #prop.reads <- filtered.df[,4:6] # only eDNA proportion values
+  #prop.mat<- t(prop.reads) # columns = Hashes, rows = PCR #, values = nReads proportions
+  
+  bray.output <- bray_by_sample(filtered.df, unique(filtered.df$bio), c(4:6))
+
+  
+  return(list(bray.output, filtered.df))
+}
+```
+
+```{r}
+test.prop.reads <- filter_by_prop(full.proportion.long, 0.05) 
+```
+
