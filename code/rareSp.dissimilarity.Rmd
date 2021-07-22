@@ -1,0 +1,12 @@
+---
+title: "rareSp.dissimilarity"
+author: "Helen Casendino"
+date: "7/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This code will look at the impact of rare species on dissimilarity between PCR replicates. 
