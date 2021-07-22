@@ -123,7 +123,7 @@ hist(beta.output[,3], main="PCRs 1 & 3", xlab="BDiv")#, ylim=c(0,60))
 
 ```
 
-(!!) I want to talk about this more...I'm not confident in how to interpret the beta diversity output (ie, whether 1 still represents complete dissimilarity)
+(!!) I want to talk about this more...I'm not confident in how to interpret the beta diversity output. I think 1 represents high dissimilarity though? In Hash richness within a sample between PCR reps. 
 
 ```{r permanova on bdivs}
 beta.perm <- melt(as.data.frame(beta.output))
@@ -133,4 +133,7 @@ adonis(BetaDiv ~ PCR.Combo,data = beta.perm, permutations = 9999) # p=0.88
 
 
 ## Step 3: Try Jaccard Similarity (bias towards rare sp)
+
+*Notes on jaccard* 
+- "measures the similarity between two sets of data. It can range from 0 to 1. The higher the number, the more similar the two sets of data."
 
