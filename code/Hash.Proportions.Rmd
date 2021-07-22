@@ -1,0 +1,63 @@
+---
+title: "Instead of eDNA index values, calculate Hash proportions within samples"
+author: "Joe Duprey, Helen Casendino"
+date: "7/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r Dependencies, include=FALSE}
+library(tidyverse)
+```
+
+First, copy code from divide.reps_calc.eDNA.index.Rmd to get raw data. 
+
+```{r load data, create technical and bio replicate columns }
+raw.ASVs <- read.csv('../input/raw_ASVs.csv')
+
+by.tech.table <- raw.ASVs %>%
+  filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
+  filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
+  filter(str_detect(sample, "K+", TRUE)) %>%  # remove negative control (??) samples
+  filter(str_detect(sample, "k+", TRUE)) %>% 
+  separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE)
+ 
+# check for repeats 
+by.tech.table %>%
+  group_by(sample, bio, tech, Hash, nReads) %>%
+  filter(n()>1)
+```
+
+Then, for now, only use samples with 3 PCR replicates. 
+
+```{r Filter in triplicates}
+three_reps <- by.tech.table %>%
+  group_by(bio) %>%
+  summarise(nrep = n_distinct(bio, tech)) %>%
+  filter(nrep == 3)
+```
+
+Now, we want to get the proportion of nReads for each hash (nReads of hash/total nReads in the bio sample for each tech rep)
+
+```{r Getting Hash Proportions}
+
+PCR.proportions <- by.tech.table %>%
+  filter(bio %in% three_reps$bio) %>%
+  group_by(Miseq_run, bio, tech) %>%
+  mutate(PropRead = nReads/sum(nReads)) %>%
+  select(Miseq_run, bio, tech, Hash, PropRead) %>%
+   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>%
+  rename("PCR1_reads"="1", "PCR2_reads"="2", "PCR3_reads"="3")
+
+```
+
+Save the new dataframe. 
+
+```{r include df in data}
+write_csv(PCR.proportions, '../data/PCR.proportions.csv')
+```
+
+
+
