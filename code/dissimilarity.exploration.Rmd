@@ -24,7 +24,7 @@ We start with clean.tech.table.csv (from divide.reps_calc.eDNA.index.Rmd), which
 full.proportion.reads <- read.csv("../data/PCR.proportions.csv")
 ```
 
-Step 1: Try Bray Curtis 
+## Step 1: Try Bray Curtis 
 
 First, convert to community matrix.
 
@@ -34,7 +34,6 @@ prop.mat<- t(prop.reads) # columns = Hashes, rows = PCR #, values = nReads propo
 ```
 
 
-"na.rm = Pairwise deletion of missing observations when computing dissimilarities." For the BC test, we should probably remove whole observations where one value is NA. When a value is NA, pretty sure it means that the Hash in question was not present in any of the bottles within that specific PCR replicate (1, 2 or 3), and was only found in the other two PCR sets. 
 
 ```{r BCD between PCR runs across samples}
 vegdist(prop.mat, method="bray", na.rm = T)
@@ -86,13 +85,52 @@ colnames(bray.perm) <- c("PCR.Combo", "BCD")
 adonis(BCD ~ PCR.Combo,data = bray.perm, permutations = 9999)
 ```
 
-Hm p value of 0.397. So at very first glance, reads don't differ that much between PCR replicates. But I still need to learn more about the adonis function to see if this is an appropriate test. 
+Hm p value of 0.397. So at very first glance, reads don't differ that much between PCR replicates. (p < 0.05 = sig dissimilarity) 
 
-"Permutational multivariate analysis of variance (PERMANOVA) is a non-parametric multivariate statistical test. It is used to compare groups of objects and test the null hypothesis that the centroids and dispersion of the groups as defined by measure space are equivalent for all groups." So we want to see how the DISSIMILARITY between samples in PCR Rep 1&2 compares to the DISSIMILARITY between samples in PCR Rep 1&3, etc. 
+*Notes on permanova + adonis:* 
+- "Permutational multivariate analysis of variance (PERMANOVA) is a non-parametric multivariate statistical test. It is used to compare groups of objects and test the null hypothesis that the centroids and dispersion of the groups as defined by measure space are equivalent for all groups." 
+- So we want to see how the DISSIMILARITY between samples in PCR Rep 1&2 compares to the DISSIMILARITY between samples in PCR Rep 1&3, etc. 
+- adonis tests for homogeneity of dispersion among groups
 
 
-Step 2: Try Beta Diversity (looking at the number of unique hashes/taxa in samples between PCR reps)
+## Step 2: Try Beta Diversity (looking at the number of unique hashes/taxa in samples between PCR reps)
 
-```{r Beta Div test}
-betadiver(index.mat, method = 1)
+So beta diversity looks at total # of unique species in each sample/PCR replicate. Let's repeat what we did for the BCD (dissimilarity by sample between PCR reps)
+
+```{r Beta Div test & visualize }
+# again, betadiver wants PCR reps (equate to site) as rows, and Hashes (equate to species) as columns
+# in betadiver(), we're using method 1 (formula = (b+c)/2)
+
+beta_by_sample <- function(df, bioVector, indexCols){  
+  
+    beta.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c(1.2,2.3,1.3))) # different PCR rep combinations
+  
+  for(i in 1:length(bioVector)){
+    sample.tib <- df[df$bio == bioVector[i],indexCols]
+    beta.tib <- t(sample.tib)
+    beta.results <- as.matrix(betadiver(beta.tib, method = 1))
+    beta.mat[i,] <- c(beta.results[1,2], beta.results[3,2], beta.results[1,3]) # PCR 1&2, 2&3, 1&3
+  }
+    return(beta.mat)
+}
+
+beta.output<- beta_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
+
+par(mfrow = c(1, 3))
+hist(beta.output[,1], main="PCRs 1 & 2", xlab="BDiv")#, ylim=c(0,60)) 
+hist(beta.output[,2], main="PCRs 2 & 3", xlab="BDiv")#, ylim=c(0,60)) 
+hist(beta.output[,3], main="PCRs 1 & 3", xlab="BDiv")#, ylim=c(0,60))
+
 ```
+
+(!!) I want to talk about this more...I'm not confident in how to interpret the beta diversity output (ie, whether 1 still represents complete dissimilarity)
+
+```{r permanova on bdivs}
+beta.perm <- melt(as.data.frame(beta.output))
+colnames(beta.perm) <- c("PCR.Combo", "BetaDiv")
+adonis(BetaDiv ~ PCR.Combo,data = beta.perm, permutations = 9999) # p=0.88
+```
+
+
+## Step 3: Try Jaccard Similarity (bias towards rare sp)
+
