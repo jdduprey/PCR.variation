@@ -48,8 +48,8 @@ PCR.proportions <- by.tech.table %>%
   group_by(Miseq_run, bio, tech) %>%
   mutate(PropRead = nReads/sum(nReads)) %>%
   select(Miseq_run, bio, tech, Hash, PropRead) %>%
-   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
-  rename(replace = c("1" = "PCR1_reads", "2" = "PCR2_reads", "3" = "PCR3_reads"))
+  pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
+  rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
 
 ```
