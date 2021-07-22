@@ -9,4 +9,4 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This code will look at the impact of rare species on dissimilarity between PCR replicates. 
+This code will look at the impact of rare species on dissimilarity between PCR replicates. (remember to look for sp that have large sd between PCR reps, and samples that have BCDs of 1 (no shared hashes))
