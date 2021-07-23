@@ -71,9 +71,9 @@ First, let's visualize how BCD distributions look in different PCR runs.
 bray.output <-   bray_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
 
 par(mfrow = c(1, 3))
-hist(bray.output[,1], main="PCRs 1 & 2", xlab="BCD", ylim=c(0,60)) 
-hist(bray.output[,2], main="PCRs 2 & 3", xlab="BCD", ylim=c(0,60)) 
-hist(bray.output[,3], main="PCRs 1 & 3", xlab="BCD", ylim=c(0,60))
+hist(bray.output[,1], main="PCRs 1 & 2", xlab="BCD", ylim=c(0,60), col = "orange") 
+hist(bray.output[,2], main="PCRs 2 & 3", xlab="BCD", ylim=c(0,60), col = "orange") 
+hist(bray.output[,3], main="PCRs 1 & 3", xlab="BCD", ylim=c(0,60), col = "orange")
 ```
 
 Now, let's compare distributions. We have to change the matrix around a bit.
@@ -117,12 +117,13 @@ beta_by_sample <- function(df, bioVector, indexCols){
 beta.output<- beta_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
 
 par(mfrow = c(1, 3))
-hist(beta.output[,1], main="PCRs 1 & 2", xlab="BDiv")
-hist(beta.output[,2], main="PCRs 2 & 3", xlab="BDiv")
-hist(beta.output[,3], main="PCRs 1 & 3", xlab="BDiv")
+hist(beta.output[,1], main="PCRs 1 & 2", xlab="BDiv", col = "red")
+hist(beta.output[,2], main="PCRs 2 & 3", xlab="BDiv", col = "red")
+hist(beta.output[,3], main="PCRs 1 & 3", xlab="BDiv", col = "red")
 ```
 
 (!!) I want to talk about this more...I'm not confident in how to interpret the beta diversity output. I think 1 represents high dissimilarity though? In Hash richness within a sample between PCR reps. 
+
 
 ```{r permanova on bdivs}
 beta.perm <- melt(as.data.frame(beta.output))
@@ -157,9 +158,9 @@ jac_by_sample <- function(df, bioVector, indexCols){
 jac.output <- jac_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
 
 par(mfrow = c(1, 3))
-hist(jac.output[,1], main="PCRs 1 & 2", xlab="Jaccard")
-hist(jac.output[,2], main="PCRs 2 & 3", xlab="Jaccard")
-hist(jac.output[,3], main="PCRs 1 & 3", xlab="Jaccard")
+hist(jac.output[,1], main="PCRs 1 & 2", xlab="Jaccard", col = "purple")
+hist(jac.output[,2], main="PCRs 2 & 3", xlab="Jaccard", col = "purple")
+hist(jac.output[,3], main="PCRs 1 & 3", xlab="Jaccard", col = "purple")
 ```
 
 ```{r permanova on jaccard}
@@ -169,3 +170,5 @@ adonis(JaccardDiv ~ PCR.Combo,data = jac.perm, permutations = 9999) # p=0.411
 ```
 
 So thus far, permanovas on Bray Curtis, Beta Diversity, and Jaccard distance have shown that PCR replicates don't produce significantly different communities within biological samples. 
+
+Another note: across strategies, 14% of all dissimilarity values were 1. 
