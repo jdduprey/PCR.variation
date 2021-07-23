@@ -8,5 +8,79 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+```{r Dependencies, include=FALSE}
+library(tidyverse)
+library(vegan)
+library(reshape)
+```
 
-This code will look at the impact of rare species on dissimilarity between PCR replicates. (remember to look for sp that have large sd between PCR reps, and samples that have BCDs of 1 (no shared hashes))
+This code will look at the impact of rare species on dissimilarity between PCR replicates. We'll start with PCR.proportions.csv, which has the proportions of each hash by PCR replicate (ONLY triplicate PCR samples)
+
+```{r load in data}
+full.proportion.reads <- read.csv('../data/PCR.proportions.csv')
+```
+
+The HashProp_Bray function is used to test the effect of excluding common species on differences between PCR replicate communities. For each biological sample, it loops through different Hash proportion thresholds- eg, only include hashes with a proportion below 0.05, or 0.01, etc.). The idea is that rare species are likely to show up more variably between PCR runs.
+
+```{r Bray Curtis sample func}
+# df is dataframe with biological sample ID, and hash proportions split up by PCR rep
+# bioVector is vector of all unique biological samples
+#propVector is vector of all rare hash proportions you want to test (0.01 = lower 1% of reads in a sample)
+# indexCols is the column numbers corresponding to PCRs 1,2 and 3.
+
+HashProp_Bray <- function(df, bioVector, propVector, indexCols){  
+  
+  # First, make a list with matrices for EACH SAMPLE. EACH SAMPLE will have BCDs for 1.2,2.3,1.3 for each Hash proportion threshold
+   proplist<-  list(matrix(NA, nrow = length(propVector), ncol = 3, dimnames = list(propVector, c(1.2,2.3,1.3))))
+    for(p in 1:(length(bioVector)-1)){
+    proplist[[p+1]]<- matrix(NA, nrow = length(propVector), ncol = 3, dimnames = list(propVector, c(1.2,2.3,1.3)))
+}
+   
+  # Now, make a table for each biological sample called sample.tib (hash proportions from each PCR run). Also, make read.means, which gets the average hash proportion across PCR runs. 
+   
+  for(i in 1:length(bioVector)){
+     sample.tib <- full.proportion.reads[full.proportion.reads$bio == bioVector[i],c(4:6)]
+      prop.means <- rowMeans(df[df$bio == bioVector[i],indexCols]) 
+    
+      #Now, the j loop subsets hashes within a sample based on their proportion. So, if the first element of propVector is .001, we will only be looking at BCD between PCR reps for Hashes that occupy 0.1% of the sample (averaged across PCR reps).
+      
+    for(j in 1:length(propVector)){
+        sub.prop.means <- which(prop.means <= propVector[j]) # indices of read means below proportion threshhold for this sample
+       sub.tib <- sample.tib[sub.prop.means,] 
+       bray.tib <- t(sub.tib)
+       bray.results <- as.matrix(vegdist(bray.tib, method="bray")) # do BCD on subset
+    proplist[[i]][j,] <- c(bray.results[1,2], bray.results[3,2], bray.results[1,3]) # PCR 1&2, 2&3, 1&3
+    }
+      print(i) #progress bar
+  }
+   # return filled list, 1 matrix per sample
+   return(proplist)
+}
+
+output <-   HashProp_Bray(full.proportion.reads, unique(full.proportion.reads$bio),seq(0.00001, 0.1, 0.0001), c(4:6))
+```
+
+So now we need to visualize our results. But output list needs to be converted into a more accessible format. 
+
+```{r reorganize output}
+
+# First, let's unnest our list, so that all BCDs from
+ unnested <-  rbind(output[[1]], output[[2]])
+  for(i in 3:length(bioVector)){
+    unnested <- rbind(unnested, output[[i]])
+  }
+
+# and turn row names (hash proportion thresholds) into a column
+unnested <- as.data.frame(unnested) %>% mutate(propThresh = rownames(unnested))
+```
+
+Now graph:
+
+```{r graph}
+matplot(unnested$propThresh, unnested[,1:3], 
+        xlab="Hash Proportion Threshold",
+        ylab= "BCD") # prop threshold vs. pairwise dist
+```
+
+So what we really want to know is what proportion threshold minimizes
+
