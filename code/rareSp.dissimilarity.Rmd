@@ -1,6 +1,6 @@
 ---
 title: "rareSp.dissimilarity"
-author: "Helen Casendino"
+author: "Joe Duprey, Helen Casendino"
 date: "7/22/2021"
 output: html_document
 ---
