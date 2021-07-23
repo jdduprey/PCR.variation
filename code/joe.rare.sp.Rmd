@@ -71,7 +71,7 @@ filter_by_prop <- function(df, proportion_cutoff) {
 ```
 
 ```{r}
-x <- seq(0,0.1, by=0.001)
+x <- seq(0,0.08, by=0.001)
 
 results <- matrix(NA, nrow=length(x), ncol=3)
 it <- 1 
@@ -96,8 +96,11 @@ results$cutoff <- x
 
 melted = melt(results, id.vars="cutoff")
 
-ggplot(data=melted, aes(x=cutoff, y=value, group=variable)) + 
-  geom_line(aes(color=variable))
+```
 
+```{r}
+ggplot(data=melted, aes(x=cutoff, y=value, group=variable)) + 
+  geom_line(aes(color=variable)) +
+  labs(x='proportion cutoff', y='mean BCD')
 ```
 
