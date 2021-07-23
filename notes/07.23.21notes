@@ -1,0 +1,64 @@
+RYAN general coding advice ===========
+Jenny Bryan - tidyverse person
+distinguish between process and product
+
+whoops !
+for 1.2 ,2.3 ,1.3
+
+so we shouldn't be analyzing 1,2,3 as meaningful division
+
+centroid -> see vegan help files
+
+================= IMPORTANT ======================
+one bottle of water will have a centroid
+one measure per bottle of water, dispersion from centroid
+
+scatter plot -> if you have each bio sample will have its own centroid at 0, distances from there to each data point
+3 points per cutoff
+
+input file for script
+
+all three replicates <- like Helen did
+
+Bray curtis
+average pairwise distance <- arithmetic mean ?
+centroid <- ?
+ONE NUMBER PER BOtTLE of WATER (Bray Curtis)
+most common OTUs at the top and then get rid of them in chunks of 50 rows
+ranks
+
+EILY - if you plotted a line for each biological replicate
+RYAN - process variance from observation variance - independent observations
+of same reality of the world,
+
+RYAN - any given PCR reaction -> aportion variance between lab and world process
+ -
+
+RYAN-> technical replicates have average of 0.3 BC
+want to pin the variation on the rare things
+statistic power, simulations later
+
+EILY -> X dropping ASVs, calculating distance matrix
+y axis, for every biological sample there a point
+
+MONCHO
+vegan::betadisper <- this explains centroids
+
+MONCHO
+If you end up with a matrix that has the BC dissimilatriteies between each set of tech replicates, then you can have
+distn.to.centroid <- function (dist){
+grouping <- rep(attr(dist, "Size"), "biol")
+centroid <- betadisper(dist, groups = grouping)
+return(centroid$distances)
+}
+
+MONCHO
+small proportions have small contribution to BC dis. Which metrics amplify the affect of removing
+rare taxa?
+
+RYAN
+Jacard binary=TRUE
+
+EILY concern
+and maybe this just won't happen but if you take the average accross all 3 pairwise
+and it was 0.5, could have been 0.5, 0.5, 0.5 or 0, 0.5, 1
