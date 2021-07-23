@@ -1,6 +1,6 @@
 ---
 title: "rareSp.dissimilarity"
-author: "Helen Casendino"
+author: "Joe Duprey, Helen Casendino"
 date: "7/22/2021"
 output: html_document
 ---
@@ -8,5 +8,87 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+```{r Dependencies, include=FALSE}
+library(tidyverse)
+library(vegan)
+library(reshape)
+```
 
-This code will look at the impact of rare species on dissimilarity between PCR replicates. 
+This code will look at the impact of rare species on dissimilarity between PCR replicates. We'll start with PCR.proportions.csv, which has the proportions of each hash by PCR replicate (ONLY triplicate PCR samples)
+
+```{r load in data}
+full.proportion.reads <- read.csv('../data/PCR.proportions.csv')
+```
+
+The HashProp_Bray function is used to test the effect of excluding common species on differences between PCR replicate communities. For each biological sample, it loops through different Hash proportion thresholds- eg, only include hashes with a proportion below 0.05, or 0.01, etc.). The idea is that rare species are likely to show up more variably between PCR runs.
+
+```{r Bray Curtis sample func}
+# df is dataframe with biological sample ID, and hash proportions split up by PCR rep
+# bioVector is vector of all unique biological samples
+#propVector is vector of all rare hash proportions you want to test (0.01 = lower 1% of reads in a sample)
+# indexCols is the column numbers corresponding to PCRs 1,2 and 3.
+
+HashProp_Bray <- function(df, bioVector, propVector, indexCols){  
+  
+  # First, make a list with matrices for EACH SAMPLE. EACH SAMPLE will have BCDs for 1.2,2.3,1.3 for each Hash proportion threshold
+   proplist<-  list(matrix(NA, nrow = length(propVector), ncol = 3, dimnames = list(propVector, c(1.2,2.3,1.3))))
+    for(p in 1:(length(bioVector)-1)){
+    proplist[[p+1]]<- matrix(NA, nrow = length(propVector), ncol = 3, dimnames = list(propVector, c(1.2,2.3,1.3)))
+}
+   
+  # Now, make a table for each biological sample called sample.tib (hash proportions from each PCR run). Also, make read.means, which gets the average hash proportion across PCR runs. 
+   
+  for(i in 1:length(bioVector)){
+     sample.tib <- full.proportion.reads[full.proportion.reads$bio == bioVector[i],c(4:6)]
+      prop.means <- rowMeans(df[df$bio == bioVector[i],indexCols]) 
+    
+      #Now, the j loop subsets hashes within a sample based on their proportion. So, if the first element of propVector is .001, we will only be looking at BCD between PCR reps for Hashes that occupy 0.1% of the sample (averaged across PCR reps).
+      
+    for(j in 1:length(propVector)){
+        sub.prop.means <- which(prop.means <= propVector[j]) # indices of read means below proportion threshhold for this sample
+       sub.tib <- sample.tib[sub.prop.means,] 
+       bray.tib <- t(sub.tib)
+       bray.results <- as.matrix(vegdist(bray.tib, method="bray")) # do BCD on subset
+    proplist[[i]][j,] <- c(bray.results[1,2], bray.results[3,2], bray.results[1,3]) # PCR 1&2, 2&3, 1&3
+    }
+      print(i) #progress bar
+  }
+   # return filled list, 1 matrix per sample
+   return(proplist)
+}
+
+output <-   HashProp_Bray(full.proportion.reads, unique(full.proportion.reads$bio),seq(0.00011, 0.1, 0.0001), c(4:6))
+```
+
+So now we need to visualize our results. But output list needs to be converted into a more accessible format. 
+
+```{r reorganize output}
+
+# First, let's unnest our list, so that all BCDs from
+ unnested <-  rbind(output[[1]], output[[2]])
+  for(i in 3:length(unique(full.proportion.reads$bio))){
+    unnested <- rbind(unnested, output[[i]])
+  }
+
+# and turn row names (hash proportion thresholds) into a column
+unnested <- as.data.frame(unnested) %>% mutate(propThresh = rownames(unnested))
+
+# means of BCDs for each PCR rep combo, separated by threshold proportion
+unnested.means<- unnested %>% group_by(unnested$propThresh) %>% summarise_at(c("1.2", "2.3","1.3"), mean)
+colnames(unnested.means) <- c("propThresh", "mean1.2", "mean2.3", "mean1.3")
+``` 
+
+Now plot. X axis = threshold proportion, y axis = mean BCD across samples (separated by PCR replicate combination)
+
+```{r plot}
+matplot(unnested.means$propThresh, unnested.means[,2:4],
+        type = "l", xlab = "proportion cutoff",
+        ylab="mean BCD",
+        ylim=c(0,1), col = c("red", "green","blue"))
+
+legend("topright", legend=c("1.2mean", "2.3mean", "1.3mean"), lty = c(1,2,3),
+       col=c("red", "green","blue"), cex=0.8)
+```
+
+So what we really want to know is what proportion threshold minimizes the BCD... all 3 lines seem to flatten around a BCD of 0.51, or proportion cutoff of 0.08
+
