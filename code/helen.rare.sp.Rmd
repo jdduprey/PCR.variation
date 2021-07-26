@@ -56,7 +56,7 @@ PCRcentroid_bySample <- function(df, exclusionProp, bioVector){
 
 ```
 
-One thing that's missing from the above function- I still need to figure out how to calculate the centroid for our PCR pairwise comparisons using Ramon's function...do we need to calculate BCD between the PCRs in a separate function and then get centroid, or does betadisper do that for us? 
+One thing that's missing from the above function- I still need to figure out how to calculate the centroid for our PCR pairwise comparisons using Ramon's function...do we need to calculate BCD between the PCRs in a separate function and then get centroid, or does betadisper do that for us..
 
 ```{r figuring out centroid}
 # does betadisper just need a vector of BCDs...? 
