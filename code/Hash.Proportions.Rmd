@@ -1,7 +1,7 @@
 ---
 title: "Instead of eDNA index values, calculate Hash proportions within samples"
-author: "Joe Duprey, Helen Casendino"
-date: "7/22/2021"
+author: "Joe Duprey, Helen Casendino, Ramon Gallego"
+date: "7/26/2021"
 output: html_document
 ---
 
@@ -60,5 +60,48 @@ Save the new dataframe.
 write_csv(PCR.proportions, '../data/PCR.proportions.csv')
 ```
 
+Let's also make a data frame that excludes very low reads within PCR triplicates, to use in helen.rare.sp.Rmd. We'll adapt our code from Step 2 of Moncho's (Denoising.all.runs.Rmd) in the OA paper, where nReads are fit to a normal distribution and those with low reads outside of the 95% CI are removed. 
 
+```{r Fit nReads to normal dist}
 
+triplicate.data<- by.tech.table %>%
+  filter(bio %in% three_reps$bio)
+
+all.nReads.sums <- triplicate.data %>%  group_by(sample) %>%
+  summarise(tot = sum(nReads)) # getting sum of reads for each PCR replicate
+
+reads.per.sample <- all.nReads.sums %>%  
+  pull(tot)
+
+names(reads.per.sample) <- all.nReads.sums %>% pull(sample)  
+
+normparams.reads <- MASS::fitdistr(reads.per.sample, "normal")$estimate
+```
+
+Now we'll get the PCR replicates with reads below the 95% interval and remove those from the data set. We'll create a revise proportions csv. 
+
+```{r Removing reads outside of 95% interval}
+all.nReads.sums <- all.nReads.sums %>%  
+  mutate(prob = pnorm(tot, normparams.reads[1], normparams.reads[2]))
+
+outliers <- 
+  all.nReads.sums %>% 
+  filter(prob < 0.075 & tot < normparams.reads[1]) # 8 rows, but each bio sample will still have at least 2 PCR replicates
+
+triplicate.data.clean <- triplicate.data %>% filter(!sample %in% outliers$sample)
+```
+
+Now let's get proportions & csv.
+
+```{r Getting proportions}
+
+PCR.proportions.clean <- triplicate.data.clean %>%
+  group_by(Miseq_run, bio, tech) %>%
+  mutate(PropRead = nReads/sum(nReads)) %>%
+  select(Miseq_run, bio, tech, Hash, PropRead) %>%
+  pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
+  rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
+
+write_csv(PCR.proportions.clean, '../data/PCR.proportions.clean.csv')
+
+```
