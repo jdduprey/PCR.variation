@@ -1,0 +1,19 @@
+---
+title: "joe.centroid.calc"
+author: "Helen Casendino, Joe Duprey"
+date: "7/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(vegan)
+```
+
+The goal of this script is the following in psuedocode
+1) figure out how to calculate group centroids with vegan::vegdist
+2) get Bray-curtis dissimilarities between each PCR rep of a biological sample and the bio group centroid
+3) eliminate reads by proportion - OR RANK-proprotion i think - and plot the dissimilarity for each bio rep
+4) to create Eily's nifty dream scatter plot 
