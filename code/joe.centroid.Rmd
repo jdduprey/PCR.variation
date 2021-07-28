@@ -21,7 +21,7 @@ The goal of this script is the following in psuedocode
 
 ```{r}
 # load data 
-full.proportion.reads <- read.csv("../data/PCR.proportions.csv")
+full.proportion.reads <- read.csv("../data/PCR.proportions.clean.csv")
 ```
 
 ```{r}
@@ -34,7 +34,6 @@ prop.mat<- t(prop.reads) # columns = Hashes, rows = PCR #, values = nReads propo
 
 bray_by_sample <- function(df, bioVector, indexCols){  
   
-    bray.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c(1.2,2.3,1.3)))
     centroid.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c('rep1','rep2','rep3')))
     # different PCR rep combinations
   

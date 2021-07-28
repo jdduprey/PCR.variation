@@ -16,7 +16,7 @@ library(reshape)
 
 
 ```{r load data}
-full.proportion.reads <- read.csv('../data/PCR.proportions.csv')
+full.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
 ```
 
 ```{r}
@@ -40,13 +40,14 @@ bray_by_sample <- function(df, bioVector, indexCols){
     bray.results <- as.matrix(vegdist(bray.tib, method="bray", na.rm = T))
     
     ### MODIFIED CODE TO GET DISTANCE OF EACH TECH REPLICATE TO CENTROID **needs review**
-    dis <- vegdist(bray.tib, method="bray", na.rm=F) # bray distance object
+    dis <- vegdist(bray.tib, method="bray", na.rm=T) # bray distance object
     groups <- factor(rep(1,3), labels=bioVector[i]) # groups, this is just vector of 3 with the bio's name?
     mod <- betadisper(dis, groups) # calculate the distance 
     #print(mod$distances) 
     
     #bray.mat[i,] <- c(bray.results[1,2], bray.results[3,2], bray.results[1,3]) # PCR 1&2, 2&3, 1&3
-    centroid.mat[i,] <- mod$distances
+    #print(mod$distances[1:3])
+    centroid.mat[i,] <- mod$distances[1:3]
   }
     return(centroid.mat)
 }
@@ -84,6 +85,7 @@ filter_proprank <- function(df, proportion) {
   ####
   centroid.dists$prop <- proportion
   centroid.dists$meandist <- (centroid.dists$rep1 + centroid.dists$rep2 + centroid.dists$rep3)/3
+  centroid.dists$mean.all <-mean(centroid.dists$meandist)
     
   return(centroid.dists)
   
@@ -122,7 +124,7 @@ test <- filter_proprank(full.proportion.long, 0.02)
 
 ```{r}
 
-x <- seq(0,0.08, by=0.01)
+x <- seq(0,0.06, by=0.001)
 datalist = vector(mode = "list", length = length(x))
 it <- 1 
 
@@ -140,6 +142,6 @@ eily.plot.df = do.call(rbind, datalist)
 ```
 
 ```{r}
-ggplot(eily.plot.df, aes(x=prop, y=meandist)) + geom_point()
+ggplot(eily.plot.df, aes(x=prop, y=mean.all)) + geom_point()
 ```
 
