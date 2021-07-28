@@ -64,32 +64,20 @@ One thing that's missing from the above function- I still need to figure out how
 # this is the function Moncho provided
 distn.to.centroid <- function(dist){
     grouping <- rep(attr(dist, "size"), "biol")
-   centroid<- betadisper(dist, groups = grouping)
+   centroid<- betadisper(dist, group = grouping)
   return(centroid$distances)
 }
 
+# practice
+
+bioProps_Hashes <- full.proportion.reads[full.proportion.reads$bio == "PO20170311F",]
+sub.tib <- bioProps_Hashes %>%select(!c(Hash, bio,Miseq_run))
+flip.tib <- t(sub.tib)
+dis <- vegdist(flip.tib)
+grouping <- factor(c(1, 2, 3), labels = c("PCR1_prop","PCR2_prop", "PCR3_prop"))
+centroid<- betadisper(dis, group = grouping)
+centroid$distances # I definitely did this wrong, all 0s... but at least the grouping variables are correct, maybe just not the data they're attaching to...everything looks good up until centroid$distances is called
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
