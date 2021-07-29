@@ -21,7 +21,7 @@ full.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
 
 ```{r}
 full.proportion.long <- full.proportion.reads %>%
-  pivot_longer(cols=c('X1','X2','X3'), names_to='tech',values_to='PropRead')
+  pivot_longer(cols=c('PCR1_prop','PCR2_prop','PCR3_prop'), names_to='tech',values_to='PropRead')
 ```
 
 ```{r}
@@ -56,26 +56,29 @@ bray_by_sample <- function(df, bioVector, indexCols){
 
 ```{r}
 
-filter_proprank <- function(df, proportion) {
+filter_proprank <- function(df, proportion, use_rank=TRUE) {
   
+  if (use_rank==FALSE) {
+    result.long <- df %>%
+    filter(df$PropRead >= proportion) 
+  } 
   
-  result.long <- df %>%
-   filter(df$PropRead >= proportion) 
+  else {
+  # the original observations in long data form
+  original.obs <- df
+  original.obs$ID <- seq.int(nrow(original.obs))
+
+  # arange observation by ascending ReadProp, then "skim" off rows based on given prop
+  rows_to_zero <- original.obs %>%
+    filter(PropRead > 0) %>%
+    arrange(PropRead) %>%
+    filter(row_number() <= proportion * n())
+
+  # if observations are in the skimmed rows, set them to zero
+  result.long <- original.obs %>%
+    mutate(PropRead = ifelse(ID %in% rows_to_zero$ID, 0, PropRead))
   
-  # # the original observations in long data form 
-  # original.obs <- df
-  # original.obs$ID <- seq.int(nrow(original.obs))
-  # 
-  # # arange observation by ascending ReadProp, then "skim" off rows based on given prop
-  # rows_to_zero <- original.obs %>%
-  #   filter(PropRead > 0) %>% 
-  #   arrange(PropRead) %>%
-  #   filter(row_number() <= proportion * n())
-  # 
-  # # if observations are in the skimmed rows, set them to zero
-  # result.long <- original.obs %>%
-  #   mutate(PropRead = ifelse(ID %in% rows_to_zero$ID, 0, PropRead))
-  
+  }
   # flatten the df to feed into bray_by_sample() function 
   result.wide <- result.long %>%
     select(Miseq_run, bio, tech, Hash, PropRead) %>%
@@ -84,54 +87,27 @@ filter_proprank <- function(df, proportion) {
   centroid.dists <- as.data.frame(bray_by_sample(result.wide, unique(result.wide$bio), c(4:6)))
   ####
   centroid.dists$prop <- proportion
-  centroid.dists$meandist <- (centroid.dists$rep1 + centroid.dists$rep2 + centroid.dists$rep3)/3
-  centroid.dists$mean.all <-mean(centroid.dists$meandist)
+  centroid.dists$mean.bio <- (centroid.dists$rep1 + centroid.dists$rep2 + centroid.dists$rep3)/3
+  centroid.dists$mean.all <-mean(centroid.dists$mean.bio)
     
   return(centroid.dists)
   
 }
 
-test <- filter_proprank(full.proportion.long, 0.02)
-```
-
-```{r}
-# filter_by_prop <- function(df, proportion) {
-#   
-#   filtered.df <- df %>%
-#     filter(df$PropRead >= proportion) 
-#     
-#   filtered.df <- filtered.df %>%  
-#     select(Miseq_run, bio, tech, Hash, PropRead) %>%
-#     pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) 
-#     
-#   #print(dim(filtered.df))  
-#   
-#   #filtered.df <- filtered.df %>%  
-#   #  filter(X1 != 0 | X2 !=0 | X3 != 0)
-#   
-#   #print(dim(filtered.df))  
-#   
-#   
-#   bray.output <- as.data.frame(bray_by_sample(filtered.df, unique(filtered.df$bio), c(4:6)))
-#   
-#   onetwo_mean <- mean(bray.output$'1.2')
-#   twothree_mean <- mean(bray.output$'2.3')
-#   onethree_mean <- mean(bray.output$'1.3')
-#   
-#   return(c(onetwo_mean, twothree_mean, onethree_mean))
-# }
+test <- filter_proprank(full.proportion.long, 0.02, use_rank=TRUE)
 ```
 
 ```{r}
 
-x <- seq(0,0.06, by=0.001)
+x <- seq(0,0.1, by=0.01)
 datalist = vector(mode = "list", length = length(x))
 it <- 1 
 
 for (i in x){
   
-  dat <- filter_proprank(full.proportion.long, i) 
   
+  dat <- filter_proprank(full.proportion.long, i, use_rank=TRUE) 
+  hist(dat$mean.bio, breaks=30)
   print(i)
   datalist[[it]] <- dat
   
