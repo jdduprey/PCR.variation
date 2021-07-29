@@ -99,7 +99,7 @@ PCR.proportions.clean <- triplicate.data.clean %>%
   group_by(Miseq_run, bio, tech) %>%
   mutate(PropRead = nReads/sum(nReads)) %>%
   select(Miseq_run, bio, tech, Hash, PropRead) %>%
-  pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
+  pivot_wider(names_from=tech, values_from=PropRead, values_fill=NA) %>% 
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
 write_csv(PCR.proportions.clean, '../data/PCR.proportions.clean.csv')
