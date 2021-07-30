@@ -13,7 +13,7 @@ library(tidyverse)
 library(vegan)
 ```
 
-This code will look at the impact of rare species on dissimilarity between PCR replicates. We'll start with PCR.proportions.clean.csv, which has the proportions of each hash by PCR replicate (ONLY triplicate PCR samples) and really low read PCR replicates are removed. 
+This code will look at the impact of rare species on dissimilarity between PCR replicates. We'll start with PCR.proportions.clean.csv, which has the proportions of each hash by PCR replicate (ONLY triplicate PCR samples) and biological samples with really 1 low read PCR replicate are removed (put into PCR.duplic.proportions.csv). 
 
 ```{r load in data}
 full.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
