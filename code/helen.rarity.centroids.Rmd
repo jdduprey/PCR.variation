@@ -64,34 +64,40 @@ PCRcentroid_bySample <- function(df, exclusionProp, bioVector){
 
 ```
 
-Now let's visualize it with our data
-
-```{r Organize function matrix output}
-
+```{r get triplicate centroids}
 exclvec<- seq(0,0.5, 0.01)
 centroids <- PCRcentroid_bySample(trip.proportion.reads, exclvec, unique(trip.proportion.reads$bio))
+```
+
+Now let's visualize the output of our data
+
+```{r plot triplicate centroids}
+
+### 1) Graph of centroid distances averaged over bio samples
 
 mean.centroidDists <- rowMeans(as.data.frame(centroids)) # average distances to centroid of PCR reps for all exclusion proportion values across biological replicates
 
 cutoff.centroid.df <- data.frame(exclusion.prop = exclvec, cent.distance = mean.centroidDists) # combines with exclusion prop vector
-```
 
-```{r Plot data}
+trip.centroids <- ggplot(cutoff.centroid.df, aes(x=exclusion.prop, y=cent.distance, color="orange")) + geom_point() +  theme_minimal() + theme(legend.position = "none") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid") + ggtitle("Triplicates") 
 
-# histogram of centroid vals for each cutoff 
-# par(mfrow= c(3,7)) # depends on # of proportion cutoffs 
-#for(i in 1:length(exclvec)){
-#  hist(centroids[i,], main="",xlab="",ylab="")
-#}
 
-# cutoff proportion vs. distance to centroid
-trip.centroids <- ggplot(cutoff.centroid.df, aes(x=exclusion.prop, y=cent.distance, color="orange")) + geom_point() +  theme_minimal() + theme(legend.position = "none") + geom_text(x=0.15, y=0.233,color="black",size=5, label="Triplicates") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid")
+### 2) Graph of centroid distances without averaging bio samples
+
+centroidDists <- as.data.frame(centroids)
+colnames(centroidDists) <- unique(trip.proportion.reads$bio)
+centroidDists$exclprop <- exclvec
+
+centroid.scatplot.df <- centroidDists %>% pivot_longer(unique(trip.proportion.reads$bio), names_to = "bio", values_to = "centroid")
+
+# actual scatter plot 
+centroid.scatplot.trip <- ggplot(centroid.scatplot.df) + geom_point(aes(x=exclprop, y=centroid, color=bio)) +  theme_minimal()  + theme(legend.position = "none") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid")
 ```
 
 
 Let's repeat with duplicate data.
 
-```{r duplicate data}
+```{r duplicate data in centroid function}
 # same function as above, just with two minor details changed (2 PCRs instead of 3)
 PCRcentroid_bySample_dup <- function(df, exclusionProp, bioVector){
   
@@ -125,17 +131,35 @@ PCRcentroid_bySample_dup <- function(df, exclusionProp, bioVector){
 
 exclvec<- seq(0,0.5, 0.01)
 centroids <- PCRcentroid_bySample_dup(dup.proportion.reads, exclvec, unique(dup.proportion.reads$bio))
+```
 
+Plot
+
+```{r plot duplicates}
 # same code as above
+
+# 1) across bio samples
 mean.centroidDists <- rowMeans(as.data.frame(centroids)) 
 cutoff.centroid.df <- data.frame(exclusion.prop = exclvec, cent.distance = mean.centroidDists) 
 
 #plot
-dup.centroids <- ggplot(cutoff.centroid.df, aes(x=exclusion.prop, y=cent.distance, color="firebrick4")) + geom_point() +  theme_minimal() + theme(legend.position = "none") + geom_text(x=0.15, y=0.1625,color="black",size=5, label="Duplicates") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid")
+dup.centroids <- ggplot(cutoff.centroid.df, aes(x=exclusion.prop, y=cent.distance, color="firebrick4")) + geom_point() +  theme_minimal() + theme(legend.position = "none") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid")+ ggtitle("Duplicates") 
+
+### 2) Graph of centroid distances without averaging bio samples
+
+centroidDists <- as.data.frame(centroids)
+colnames(centroidDists) <- unique(dup.proportion.reads$bio)
+centroidDists$exclprop <- exclvec
+
+centroid.scatplot.df <- centroidDists %>% pivot_longer(unique(dup.proportion.reads$bio), names_to = "bio", values_to = "centroid")
+
+# actual scatter plot 
+centroid.scatplot.dup <- ggplot(centroid.scatplot.df) + geom_point(aes(x=exclprop, y=centroid, color=bio)) +  theme_minimal()  + theme(legend.position = "none") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid") +
+  ylim(0,0.6)
 ```
 
-Let's plot both our duplicate and triplicate data:
+Let's plot both our duplicate and triplicate data.
 
 ```{r plot both dup and trip centroid output}
-grid.arrange(trip.centroids, dup.centroids, ncol=2)
+grid.arrange(trip.centroids, dup.centroids, centroid.scatplot.trip, centroid.scatplot.dup, ncol=2, nrow=2)
 ```
