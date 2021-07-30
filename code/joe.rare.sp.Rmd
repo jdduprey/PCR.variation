@@ -25,6 +25,10 @@ full.proportion.long <- full.proportion.reads %>%
 ```
 
 ```{r}
+is.na(full.proportion.reads)
+```
+
+```{r}
 # don't know how to import function from Rmd
 #bioVector = list of unique biological replicate IDs, indexCols = col numbers of eDNA proportion values (by PCR #). df needs to have 3 columns corresponding to eDNA proportions of different PCR runs
 

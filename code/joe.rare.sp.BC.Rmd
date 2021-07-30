@@ -36,7 +36,7 @@ bray_by_sample <- function(df, bioVector, indexCols){
   for(i in 1:length(bioVector)){
     sample.tib <- df[df$bio == bioVector[i],indexCols]
     bray.tib <- t(sample.tib)
-    bray.results <- as.matrix(vegdist(bray.tib, method="bray", na.rm = F))
+    bray.results <- as.matrix(vegdist(bray.tib, method="bray", na.rm = T))
     
     #print(i)
     #print(bray.results)
