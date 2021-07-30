@@ -1,7 +1,7 @@
 ---
 title: "rareSp.dissimilarity"
 author: "Helen Casendino"
-date: "7/26/2021"
+date: "7/30/2021"
 output: html_document
 ---
 
@@ -14,7 +14,11 @@ library(vegan)
 library(gridExtra)
 ```
 
-This code will look at the impact of rare species on dissimilarity between PCR replicates. We'll start with PCR.proportions.clean.csv, which has the proportions of each hash by PCR replicate (ONLY triplicate PCR samples) and biological samples with really 1 low read PCR replicate are removed (put into PCR.duplic.proportions.csv). 
+This code will look at the impact of rare species on dissimilarity between PCR replicates. 
+
+## Looking at PCR triplicates
+
+We'll start with PCR.proportions.clean.csv, which has the proportions of each hash by PCR replicate (ONLY triplicate PCR samples) and biological samples with really 1 low read PCR replicate are removed (put into PCR.duplic.proportions.csv). 
 
 ```{r load in data}
 trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
@@ -94,6 +98,18 @@ centroid.scatplot.df <- centroidDists %>% pivot_longer(unique(trip.proportion.re
 centroid.scatplot.trip <- ggplot(centroid.scatplot.df) + geom_point(aes(x=exclprop, y=centroid, color=bio)) +  theme_minimal()  + theme(legend.position = "none") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid")
 ```
 
+I'm also curious about what values these percent cutoffs are representing. Let's take an average proportion value, and see what percent of each bio sample's Hash prop data it makes up (see Prop_Percent.of.sample.func.R in code/miscellaneous for more details)
+
+```{r Check what percent cutoffs correspond to different proportion values }
+source('code/miscellaneous/Prop_Percent.of.sample.func.R') # load function
+output <- Prop_Percent.of.sample(trip.proportion.reads, unique(trip.proportion.reads$bio), 0.01) # how much of each sample do Hashes with avg props < 0.02 take up?
+hist(output)
+```
+
+Interesting...so Hashes with avg props < 0.01 take up at least 85% of each sample.
+
+
+## Looking at PCR duplicates
 
 Let's repeat with duplicate data.
 
@@ -158,7 +174,8 @@ centroid.scatplot.dup <- ggplot(centroid.scatplot.df) + geom_point(aes(x=exclpro
   ylim(0,0.6)
 ```
 
-Let's plot both our duplicate and triplicate data.
+
+## Let's plot both our duplicate and triplicate data.
 
 ```{r plot both dup and trip centroid output}
 grid.arrange(trip.centroids, dup.centroids, centroid.scatplot.trip, centroid.scatplot.dup, ncol=2, nrow=2)
