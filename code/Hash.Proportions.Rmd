@@ -1,9 +1,15 @@
 ---
 title: "Instead of eDNA index values, calculate Hash proportions within samples"
 author: "Joe Duprey, Helen Casendino, Ramon Gallego"
-date: "7/26/2021"
+date: "7/29/2021"
 output: html_document
 ---
+
+# Overview: This code creates 3 csvs: 
+  1) PCR.proportions.csv (line 66). This code calculates the proportions for each Hash within a PCR triplicate without removing PCR replicates with low reads
+  2) PCR.proportions.clean.csv (line 121). This code calculates the proportions for each Hash within a PCR triplicate AFTER removing PCR replicates with low reads
+  3) PCR.duplic.proportions.csv (line 199). This code calculates the proportions for each Hash within a PCR duplicate. These duplicate include true duplicates AND samples that had one PCR replicate removed in the earlier low read quality control step. 
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -30,7 +36,11 @@ by.tech.table %>%
   filter(n()>1)
 ```
 
-Then, for now, only use samples with 3 PCR replicates. 
+
+
+## Triplicate proportions with low reads included
+
+For now, only use samples with 3 PCR replicates. 
 
 ```{r Filter in triplicates}
 three_reps <- by.tech.table %>%
@@ -42,7 +52,6 @@ three_reps <- by.tech.table %>%
 Now, we want to get the proportion of nReads for each hash (nReads of hash/total nReads in the bio sample for each tech rep)
 
 ```{r Getting Hash Proportions}
-
 PCR.proportions <- by.tech.table %>%
   filter(bio %in% three_reps$bio) %>%
   group_by(Miseq_run, bio, tech) %>%
@@ -50,8 +59,6 @@ PCR.proportions <- by.tech.table %>%
   select(Miseq_run, bio, tech, Hash, PropRead) %>%
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
-
-
 ```
 
 Save the new dataframe. 
@@ -60,14 +67,19 @@ Save the new dataframe.
 write_csv(PCR.proportions, '../data/PCR.proportions.csv')
 ```
 
+
+
+
+## Triplicate proportions with low reads removed
+
 Let's also make a data frame that excludes very low reads within PCR triplicates, to use in helen.rare.sp.Rmd. We'll adapt our code from Step 2 of Moncho's (Denoising.all.runs.Rmd) in the OA paper, where nReads are fit to a normal distribution and those with low reads outside of the 95% CI are removed. 
 
 ```{r Fit nReads to normal dist}
 
-triplicate.data<- by.tech.table %>%
+triplicate.data.allreads<- by.tech.table %>%
   filter(bio %in% three_reps$bio)
 
-all.nReads.sums <- triplicate.data %>%  group_by(sample) %>%
+all.nReads.sums <- triplicate.data.allreads %>%  group_by(sample) %>%
   summarise(tot = sum(nReads)) # getting sum of reads for each PCR replicate
 
 reads.per.sample <- all.nReads.sums %>%  
@@ -86,16 +98,32 @@ all.nReads.sums <- all.nReads.sums %>%
 
 outliers <- 
   all.nReads.sums %>% 
-  filter(prob < 0.075 & tot < normparams.reads[1]) # 8 rows, but each bio sample will still have at least 2 PCR replicates
-
-triplicate.data.clean <- triplicate.data %>% filter(!sample %in% outliers$sample)
+  filter(prob < 0.075 & tot < normparams.reads[1])
 ```
 
-Now let's get proportions & csv.
+So taking a break here - we now have biological replicates that need one PCR replicate removed because it's read was two low. So in essence, these samples are now duplicates. We can combine these samples with our true duplicates to make a triplicate and a duplicate table. 
 
-```{r Getting proportions}
+```{r Isolate duplicates}
+# Getting true duplicates
+two_reps <- by.tech.table %>%
+  group_by(bio) %>%
+  summarise(nrep = n_distinct(bio, tech)) %>%
+  filter(nrep == 2)
 
-PCR.proportions.clean <- triplicate.data.clean %>%
+# biological sample identifiers of outliers from triplicate (low reads, now duplicates). Add these two two_reps
+outliers$bio<- gsub('..$', '', outliers$sample)
+two_reps_full <- two_reps %>% rows_insert(tibble(bio = outliers$bio, nrep = 2))
+```
+
+Now remove the new duplicate samples from the triplicate set.
+We'll also make the triplicate proportion table here. 
+
+```{r removing duplicates from triplicate & making triplicate prop table}
+
+true.triplicate.data<- by.tech.table %>%
+  filter(!bio %in% two_reps_full$bio)
+
+PCR.proportions.clean <- true.triplicate.data %>%
   group_by(Miseq_run, bio, tech) %>%
   mutate(PropRead = nReads/sum(nReads)) %>%
   select(Miseq_run, bio, tech, Hash, PropRead) %>%
@@ -113,5 +141,77 @@ PCR.by.bio.clean <- triplicate.data.clean %>%
 
 write_csv(PCR.by.bio.clean, '../data/PCR.proportions.clean.csv')
 write_csv(PCR.proportions.clean, '../data/PCR.proportions.clean.csv')
+```
+
+
+
+## Duplicate proportions 
+
+Now, we also need to repeat with our duplicates! As a reminder, we also need to check for low reads from these. 
+
+```{r creating full duplicate df}
+
+duplicate.data<- by.tech.table %>%
+  filter(bio %in% two_reps_full$bio) # both low read and true duplicates
+
+# remove PCR *replicates* that had low reads (so leave the remaining two for that bio sample)
+duplicate.data.clean <- duplicate.data %>% filter(!sample %in% outliers$sample)
+```
+
+Now we're gonna check, just to make sure, that no reads from the true duplicates are really low. This code chunk is the same as code chunks in lines 66 and 84 above.
+
+```{r checking to make sure no dups have really low reads}
+#all.nReads.sums <- duplicate.data.clean %>%  group_by(sample) %>%
+#  summarise(tot = sum(nReads)) 
+
+#reads.per.sample <- all.nReads.sums %>%  
+#  pull(tot)
+
+#names(reads.per.sample) <- all.nReads.sums %>% pull(sample)  
+
+#normparams.reads <- MASS::fitdistr(reads.per.sample, "normal")$estimate
+
+#all.nReads.sums <- all.nReads.sums %>%  
+#  mutate(prob = pnorm(tot, normparams.reads[1], normparams.reads[2]))
+
+#all.nReads.sums %>% 
+#  filter(prob < 0.075 & tot < normparams.reads[1])
+```
+
+Nothing too low! So, let's make a csv with duplicate proportions. But ew, some samples have PCR 1&2, others have PCR 2&3, etc. So let's change all to PCR 1&2. 
+
+```{r duplicate data table clean up}
+# bioVector is list of unique bio sample IDs, tech.col is the column of the df that lists tech rep
+standard_PCRnums <- function(dup.df, bioVector, tech.col){
+  
+  for(i in 1:length(bioVector)){
+      allPCR.nums <- dup.df[dup.df$bio == bioVector[i],tech.col] # part of dup.df for 1 bio sample that lists all tech rep numbers
+      uniquePCR.nums <- unique(dup.df[dup.df$bio == bioVector[i],tech.col]) # what are the 2 numbers of the PCR reactions done? ie, 1 & 2, 2 & 3, etc.
+     
+       rows1 <-which(allPCR.nums == uniquePCR.nums[1]) # which rows equal the 1st PCR rep 
+     rows2 <-which(allPCR.nums == uniquePCR.nums[2])
+     
+     allPCR.nums[rows1] <- "1"  # convert the first PCR number to 1 within the tech column of the loop's dataframe
+     allPCR.nums[rows2] <- "2"
+      dup.df[dup.df$bio == bioVector[i],tech.col] <- allPCR.nums # put this new number string into dup.df
+  }
+  return(dup.df)
+} 
+
+standard.props <- standard_PCRnums(duplicate.data.clean, unique(duplicate.data.clean$bio), 4)
+```
+
+
+```{r duplicate proportions}
+
+# calculate duplicate proportions
+PCR.duplic.proportions <- standard.props %>%
+  group_by(Miseq_run, bio, tech) %>%
+  mutate(PropRead = nReads/sum(nReads)) %>%
+  select(Miseq_run, bio, tech, Hash, PropRead) %>% 
+  pivot_wider(names_from=tech, values_from=PropRead, values_fill = 0) %>% 
+  rename(c("PCR1_prop" = "1", "PCR2_prop" = "2"))
+
+write_csv(PCR.duplic.proportions, '../data/PCR.duplic.proportions.csv')
 
 ```
