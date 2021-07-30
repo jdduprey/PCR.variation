@@ -45,7 +45,7 @@ bray_by_sample <- function(df, bioVector, indexCols){
     mod <- betadisper(dis, groups) # calculate the distance 
     
     #print(mod$distances[1:3])
-    centroid.mat[i,] <- mod$distances
+    centroid.mat[i,] <- mod$distances[1:3]
   }
     return(centroid.mat)
 }
@@ -70,7 +70,7 @@ filter_proprank <- function(df, proportion, use_rank=TRUE) {
   rows_to_zero <- original.obs %>%
     filter(PropRead > 0) %>%
     arrange(PropRead) %>%
-    filter(row_number() <= proportion) # * n()  # should this be great or less than *******
+    filter(row_number() <= proportion * n()) # * n()  # should this be great or less than *******
 
   # if observations are in the skimmed rows, set them to zero
   result.long <- original.obs %>%
@@ -94,19 +94,19 @@ filter_proprank <- function(df, proportion, use_rank=TRUE) {
   
 }
 
-test <- filter_proprank(full.proportion.long, 50000, use_rank=TRUE)
+test <- filter_proprank(full.proportion.long, 0.2, use_rank=FALSE)
 ```
 
 ```{r}
 
-x <- seq(0,120000, by=10000)
+x <- seq(0,0.2, by=0.01)
 datalist = vector(mode = "list", length = length(x))
 it <- 1 
 
 for (i in x){
   
   
-  dat <- filter_proprank(full.proportion.long, i, use_rank=TRUE) 
+  dat <- filter_proprank(full.proportion.long, i, use_rank=FALSE) 
   hist(dat$mean.bio, breaks=30)
   print(i)
   datalist[[it]] <- dat
