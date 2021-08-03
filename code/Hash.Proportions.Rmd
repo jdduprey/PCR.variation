@@ -132,14 +132,14 @@ PCR.proportions.clean <- true.triplicate.data %>%
 
 # something like this to get hash proportions between bio replicates - but i think
 # we want to sum them accross technical replicates first? 
-PCR.by.bio.clean <- triplicate.data.clean %>%
-  group_by(Miseq_run, bio, tech) %>%
-  mutate(PropRead = nReads/sum(nReads)) %>%
-  select(Miseq_run, bio, tech, Hash, PropRead) %>%
-  pivot_wider(names_from=bio, values_from=PropRead, values_fill=0) #%>% 
+# PCR.by.bio.clean <- triplicate.data.clean %>%
+#   group_by(Miseq_run, bio, tech) %>%
+#   mutate(PropRead = nReads/sum(nReads)) %>%
+#   select(Miseq_run, bio, tech, Hash, PropRead) %>%
+#   pivot_wider(names_from=bio, values_from=PropRead, values_fill=0) #%>% 
   # rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
-write_csv(PCR.by.bio.clean, '../data/PCR.proportions.clean.csv')
+#write_csv(PCR.by.bio.clean, '../data/PCR.proportions.clean.csv')
 write_csv(PCR.proportions.clean, '../data/PCR.proportions.clean.csv')
 ```
 
