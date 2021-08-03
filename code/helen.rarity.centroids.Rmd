@@ -114,26 +114,29 @@ PCRcentroids_dup <- function(df, cutoffs, bioVector){
 Now let's get output for duplicate and triplicate data. 
 
 ```{r Function output for dup and trip data}
-trip.output <- PCRcentroids_trip(trip.proportion.reads, seq(0,0.0001, 0.000001),unique(trip.proportion.reads$bio))
+trip.output <- PCRcentroids_trip(trip.proportion.reads, seq(0,0.000075, 0.000001),unique(trip.proportion.reads$bio))
 
-dup.output <- PCRcentroids_dup(dup.proportion.reads, seq(0,0.0001, 0.000001),unique(dup.proportion.reads$bio))
+dup.output <- PCRcentroids_dup(dup.proportion.reads, seq(0,0.000075, 0.000001),unique(dup.proportion.reads$bio))
 ```
 
 
 ## Step 3: Plotting.
 
-```{r triplicate plotting}
+  a) trip (and dup).plot.A has distance to centroid and %hash excluded vs. cutoff prop
+  b) trip(and dup).plot.B has distance to centroid vs. cutoff prop
+  c) trip(and dup).plot.C shows variability in distribution of hashes chopped across bio replicates changes with cutoff 
 
-### 1) Graph of centroid distances averaged over bio samples
+### Triplicate plotting: 
 
+```{r Getting centroid distances averaged over triplicate bio samples}
 mean.centroidDists <- rowMeans(as.data.frame(trip.output$centroid.dists)) # average distances to centroid of PCR reps for all exclusion proportion values across biological replicates
-cutoff.centroid.df <- data.frame(cutoffs = seq(0,0.0001, 0.000001), cent.distance = mean.centroidDists) # combines with cutoffs
-
+cutoff.centroid.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), cent.distance = mean.centroidDists) # combines with cutoffs
 # also add layer that shows average percent of Hashes chopped for each cutoff
 mean.exclpercent <- rowMeans(as.data.frame(trip.output$excl.percents)) *100 #percents, not proportions
-exclpercent.df <- data.frame(cutoffs = seq(0,0.0001, 0.000001), exclperc = mean.exclpercent)
+exclpercent.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), exclperc = mean.exclpercent)
+```
 
-# with two y axes (1 = percent hashes excluded, 2 = dist to centroid)
+```{r plot with two y axes (1 = percent hashes excluded, 2 = dist to centroid)}
 trip.plot.A <- ggplot() +  theme_minimal() + 
   geom_bar(mapping = aes(x = exclpercent.df$cutoffs, y = exclpercent.df$exclperc), stat = "identity", fill = "gainsboro") +
   geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance*100), size = .5, color = "darkblue") +
@@ -144,53 +147,68 @@ trip.plot.A <- ggplot() +  theme_minimal() +
   theme(axis.title.y = element_text(color = "gray48"),
       axis.title.y.right = element_text(color = "darkblue"))
 
-# with one axis (Dist to centroid)
+trip.plot.A
+```
+
+```{r plot with 1 y axis = dist to centroid)}
 trip.plot.B <-  ggplot() +  theme_minimal() + geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance), size = .5, color = "darkblue") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "darkblue")) + scale_y_continuous(name = " Distance to Centroid") + xlab("Proportion Cutoff") 
 
-# next I want to make violin plots to see how distribution of hashes chopped across bio replicates changes with proportin cutoff 
+trip.plot.B 
+```
 
-  ggplot(aes(Subject, Reaction)) +
-  geom_violin()+
-  theme(aspect.ratio = .33)  # change the aspect ratio to make long and wide
+```{r violin plot}
+ violin_dat<-  as.data.frame(trip.output$excl.percents) %>% mutate(cutoffs = seq(0,0.000075, 0.000001)) 
+violin_dat$cutoffs <- as.factor(violin_dat$cutoffs)
+bottles <- colnames(violin_dat)[1:234]
+violin_long <- pivot_longer(test, cols = bottles, names_to = "bottles", values_to = "percent_excl" )
+
+trip.plot.C <- ggplot(violin_long, aes(x=cutoffs, y=percent_excl*100, fill = cutoffs)) + scale_x_discrete(limits=c("0", "1e-05", "2e-05", "3e-05" ,"4e-05" ,"5e-05", "6e-05" ,"7e-05")) + geom_violin() + labs(x="Proportion Cutoff", y = "% of Hashes Excluded") + scale_fill_brewer(palette="RdBu") + theme_minimal()
+
+trip.plot.C
+# why are there so many hashes excluded when cutoff is 0? need to check how violin plot is grouping
+
 ```
 
 
-```{r duplicate plotting}
-mean.centroidDists <- rowMeans(as.data.frame(dup.output$centroid.dists)) # average distances to centroid of PCR reps for all exclusion proportion values across biological replicates
-cutoff.centroid.df <- data.frame(cutoffs = seq(0,0.0001, 0.000001), cent.distance = mean.centroidDists) # combines with cutoffs
+### Duplicate plotting: 
 
+```{r Getting centroid distances averaged over duplicate bio samples}
+mean.centroidDists <- rowMeans(as.data.frame(dup.output$centroid.dists)) # average distances to centroid of PCR reps for all exclusion proportion values across biological replicates
+cutoff.centroid.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), cent.distance = mean.centroidDists) # combines with cutoffs
 # also add layer that shows average percent of Hashes chopped for each cutoff
 mean.exclpercent <- rowMeans(as.data.frame(dup.output$excl.percents)) *100 #percents, not proportions
-exclpercent.df <- data.frame(cutoffs = seq(0,0.0001, 0.000001), exclperc = mean.exclpercent)
+exclpercent.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), exclperc = mean.exclpercent)
+```
 
-# with two y axes (1 = percent hashes excluded, 2 = dist to centroid)
+```{r plot with two y axes (1 = percent hashes excluded, 2 = dist to centroid)}
 dup.plot.A <- ggplot() +  theme_minimal() + 
   geom_bar(mapping = aes(x = exclpercent.df$cutoffs, y = exclpercent.df$exclperc), stat = "identity", fill = "gainsboro") +
-  geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance*100), size = .5, color = "darkblue") +
+  geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance*100), size = .5, color = "red3") +
   scale_x_continuous(name = "Proportion Cutoff") +
   scale_y_continuous(name = " %  Excluded",
       labels = function(b) { paste0(b, "%")}, 
     sec.axis = sec_axis(~./100, name = " Distance to Centroid")) + 
   theme(axis.title.y = element_text(color = "gray48"),
-      axis.title.y.right = element_text(color = "darkblue"))
+      axis.title.y.right = element_text(color = "red3"))
 
-# with one axis (Dist to centroid)
-dup.plot.B <-  ggplot() +  theme_minimal() + geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance), size = .5, color = "darkblue") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "darkblue")) + scale_y_continuous(name = " Distance to Centroid") + xlab("Proportion Cutoff") 
+dup.plot.A
 ```
 
+```{r plot with 1 y axis = dist to centroid)}
+dup.plot.B <-  ggplot() +  theme_minimal() + geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance), size = .5, color = "red3") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "red3")) + scale_y_continuous(name = " Distance to Centroid") + xlab("Proportion Cutoff") 
 
-```{r other plots}
-### 2) Graph of centroid distances without averaging bio samples
+dup.plot.B 
+```
 
-#centroidDists <- as.data.frame(trip.output)
-#colnames(centroidDists) <- unique(trip.output$bio)
-#centroidDists$exclprop <- exclvec
+```{r violin plot}
+ violin_dat<-  as.data.frame(dup.output$excl.percents) %>% mutate(cutoffs = seq(0,0.000075, 0.000001)) 
+violin_dat$cutoffs <- as.factor(violin_dat$cutoffs)
+bottles <- colnames(violin_dat)[1:13]
+violin_long <- pivot_longer(test, cols = bottles, names_to = "bottles", values_to = "percent_excl" )
 
-#centroid.scatplot.df <- centroidDists %>% pivot_longer(unique(trip.proportion.reads$bio), #names_to = "bio", values_to = "centroid")
+dup.plot.C <- ggplot(violin_long, aes(x=cutoffs, y=percent_excl*100, fill = cutoffs)) + scale_x_discrete(limits=c("0", "1e-05", "2e-05", "3e-05" ,"4e-05" ,"5e-05", "6e-05" ,"7e-05")) + geom_violin() + labs(x="Proportion Cutoff", y = "% of Hashes Excluded") + scale_fill_brewer(palette="Paired") + theme_minimal()
 
-# actual scatter plot 
-#centroid.scatplot.trip <- ggplot(centroid.scatplot.df) + geom_point(aes(x=exclprop, y=centroid, color=bio)) +  theme_minimal()  + theme(legend.position = "none") + xlab("% Rare Species Excluded") + ylab("Distance to Centroid")
+dup.plot.C
+# why are there so many hashes excluded when cutoff is 0? need to check how violin plot is grouping
 
-## Let's plot both our duplicate and triplicate data.
-#grid.arrange(trip.centroids, dup.centroids, centroid.scatplot.trip, centroid.scatplot.dup, ncol=2, nrow=2)
 ```
