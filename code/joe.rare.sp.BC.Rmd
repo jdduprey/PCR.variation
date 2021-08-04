@@ -38,7 +38,7 @@ bray_by_sample <- function(df, bioVector, indexCols){
     bray.tib <- t(sample.tib)
     bray.results <- as.matrix(vegdist(bray.tib, method="bray", na.rm = T))
     
-    #print(i)
+    #print(bioVector[i])
     #print(bray.results)
     bray.mat[i,1] <- bray.results[1,2]
     bray.mat[i,2] <- bray.results[2,3]
@@ -56,10 +56,25 @@ bray.mat.test <- bray_by_sample(full.proportion.reads, unique(full.proportion.re
 
 filter_proprank <- function(df, proportion, use_rank=TRUE) {
   
+  greater.than.zero <- df %>%
+    filter(PropRead > 0)
+  
+  original.rows <- nrow(greater.than.zero)
+  print(original.rows)
+  
   if (use_rank==FALSE) {
-    result.long <- df %>%
-    filter(df$PropRead >= proportion) 
+    result.long <- greater.than.zero %>%
+    filter(greater.than.zero$PropRead >= proportion) 
+    
+    remaining.rows <- nrow(result.long)
+    
+    prop.eliminated <- (original.rows - remaining.rows)/original.rows
+    print(remaining.rows)
+    print('--------------')
+    print(prop.eliminated)
+    print('^^^^')
   } 
+  
   
   else {
   # the original observations in long data form
@@ -84,22 +99,24 @@ filter_proprank <- function(df, proportion, use_rank=TRUE) {
   
   BC.by.bio <- as.data.frame(bray_by_sample(result.wide, unique(result.wide$bio), c(4:6)))
   ####
-  BC.by.bio$prop <- proportion # show which prop cutoff it came from on the big df 
+  BC.by.bio$cutoff <- proportion # show which prop cutoff it came from on the big df 
   # get the mean distance per bio rep
   BC.by.bio$mean.bio <- (BC.by.bio$onetwo + BC.by.bio$twothree + BC.by.bio$onethree) /3 
   # get the mean distance for all bio reps combined
   BC.by.bio$mean.all <-mean(BC.by.bio$mean.bio)
+  
+  BC.by.bio$prop.elim <- prop.eliminated
     
   return(BC.by.bio)
   
 }
 
-test <- filter_proprank(full.proportion.long, 0, use_rank=FALSE)
+test <- filter_proprank(full.proportion.long, 0.02, use_rank=FALSE)
 ```
 
 ```{r}
 
-x <- seq(0,0.2, by=0.005)
+x <- seq(0,0.03, by=0.0001)
 datalist = vector(mode = "list", length = length(x))
 it <- 1 
 
@@ -107,7 +124,7 @@ for (i in x){
   
   dat <- filter_proprank(full.proportion.long, i, use_rank=FALSE) 
   #hist(dat$mean.bio, breaks=30)
-  print(i)
+  #print(i)
   datalist[[it]] <- dat
   
   it <- it+1
@@ -118,5 +135,22 @@ eily.plot.df = do.call(rbind, datalist)
 
 ```{r}
 ggplot(eily.plot.df, aes(x=prop, y=mean.all)) + geom_point()
+```
+```{r}
+ggplot(eily.plot.df, aes(x=prop.elim, y=mean.all)) + geom_point()
+```
+
+```{r}
+ggplot(eily.plot.df, aes(x=cutoff, y=prop.elim)) + geom_point()
+
+```
+```{r}
+ggplot(eily.plot.df, aes(x=cutoff, y=mean.all)) + geom_point()
+
+```
+
+```{r}
+ggplot(eily.plot.df, aes(x=cutoff, y=mean.bio)) + geom_point()
+
 ```
 
