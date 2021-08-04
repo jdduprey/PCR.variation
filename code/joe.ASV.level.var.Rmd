@@ -1,0 +1,29 @@
+---
+title: "joe.ASV.level.var"
+author: "Helen Casendino, Joe Duprey"
+date: "8/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(vegan)
+library(ggplot2)
+```
+
+load Helen's clean proportion data for triplicates 
+```{r}
+trip.prop <- read.csv('../data/PCR.proportions.clean.csv')
+
+trip.prop.var <- trip.prop %>% 
+  rowwise() %>% 
+  mutate(mean = mean(c_across(PCR1_prop:PCR3_prop))) %>%
+  mutate(sd = sd(c_across(PCR1_prop:PCR3_prop))) 
+
+```
+
+```{r}
+hist(log(trip.prop.var$sd), breaks = 80)
+```
+
