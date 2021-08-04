@@ -1,7 +1,7 @@
 ---
 title: "Instead of eDNA index values, calculate Hash proportions within samples"
 author: "Joe Duprey, Helen Casendino, Ramon Gallego"
-date: "7/29/2021"
+date: "8/4/2021"
 output: html_document
 ---
 
@@ -9,7 +9,6 @@ output: html_document
   1) PCR.proportions.csv (line 66). This code calculates the proportions for each Hash within a PCR triplicate without removing PCR replicates with low reads
   2) PCR.proportions.clean.csv (line 121). This code calculates the proportions for each Hash within a PCR triplicate AFTER removing PCR replicates with low reads
   3) PCR.duplic.proportions.csv (line 199). This code calculates the proportions for each Hash within a PCR duplicate. These duplicate include true duplicates AND samples that had one PCR replicate removed in the earlier low read quality control step. 
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -205,3 +204,9 @@ PCR.duplic.proportions <- standard.props %>%
 write_csv(PCR.duplic.proportions, '../data/PCR.duplic.proportions.csv')
 
 ```
+
+
+
+
+
+
