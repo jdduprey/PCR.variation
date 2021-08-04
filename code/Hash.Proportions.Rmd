@@ -79,8 +79,12 @@ Let's also make a data frame that excludes very low reads within PCR triplicates
 triplicate.data.allreads<- by.tech.table %>%
   filter(bio %in% three_reps$bio)
 
-all.nReads.sums <- triplicate.data.allreads %>%  group_by(sample) %>%
+all.nReads.sums <- triplicate.data.allreads %>%  
+  group_by(sample) %>%
   summarise(tot = sum(nReads)) # getting sum of reads for each PCR replicate
+
+# visualize total read distribution 
+hist(all.nReads.sums$tot, breaks=80)
 
 reads.per.sample <- all.nReads.sums %>%  
   pull(tot)
@@ -101,7 +105,7 @@ outliers <-
   filter(prob < 0.075 & tot < normparams.reads[1])
 ```
 
-So taking a break here - we now have biological replicates that need one PCR replicate removed because it's read was two low. So in essence, these samples are now duplicates. We can combine these samples with our true duplicates to make a triplicate and a duplicate table. 
+So taking a break here - we now have biological replicates that need one PCR replicate removed because it's read was too low. So in essence, these samples are now duplicates. We can combine these samples with our true duplicates to make a triplicate and a duplicate table. 
 
 ```{r Isolate duplicates}
 # Getting true duplicates
@@ -130,8 +134,7 @@ PCR.proportions.clean <- true.triplicate.data %>%
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
   dplyr::rename(c('PCR1_prop' = '1', 'PCR2_prop' = '2', 'PCR3_prop' = '3'))
 
-# something like this to get hash proportions between bio replicates - but i think
-# we want to sum them accross technical replicates first? 
+# something like this to get hash proportions between bio replicates 
 # PCR.by.bio.clean <- triplicate.data.clean %>%
 #   group_by(Miseq_run, bio, tech) %>%
 #   mutate(PropRead = nReads/sum(nReads)) %>%
