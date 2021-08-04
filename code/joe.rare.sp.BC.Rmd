@@ -21,7 +21,7 @@ full.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
 
 ```{r}
 full.proportion.long <- full.proportion.reads %>%
-  pivot_longer(cols=c('X1','X2','X3'), names_to='tech',values_to='PropRead')
+  pivot_longer(cols=c('PCR1_prop','PCR2_prop','PCR3_prop'), names_to='tech',values_to='PropRead')
 ```
 
 ```{r}
