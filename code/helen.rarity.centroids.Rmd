@@ -160,7 +160,7 @@ trip.plot.B
  violin_dat<-  as.data.frame(trip.output$excl.percents) %>% mutate(cutoffs = seq(0,0.000075, 0.000001)) 
 violin_dat$cutoffs <- as.factor(violin_dat$cutoffs)
 bottles <- colnames(violin_dat)[1:234]
-violin_long <- pivot_longer(test, cols = bottles, names_to = "bottles", values_to = "percent_excl" )
+violin_long <- pivot_longer(violin_dat, cols = bottles, names_to = "bottles", values_to = "percent_excl" )
 
 trip.plot.C <- ggplot(violin_long, aes(x=cutoffs, y=percent_excl*100, fill = cutoffs)) + scale_x_discrete(limits=c("0", "1e-05", "2e-05", "3e-05" ,"4e-05" ,"5e-05", "6e-05" ,"7e-05")) + geom_violin() + labs(x="Proportion Cutoff", y = "% of Hashes Excluded") + scale_fill_brewer(palette="RdBu") + theme_minimal()
 
@@ -173,17 +173,17 @@ trip.plot.C
 ### Duplicate plotting: 
 
 ```{r Getting centroid distances averaged over duplicate bio samples}
-mean.centroidDists <- rowMeans(as.data.frame(dup.output$centroid.dists)) # average distances to centroid of PCR reps for all exclusion proportion values across biological replicates
-cutoff.centroid.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), cent.distance = mean.centroidDists) # combines with cutoffs
+mean.centroidDists.d <- rowMeans(as.data.frame(dup.output$centroid.dists)) # average distances to centroid of PCR reps for all exclusion proportion values across biological replicates
+cutoff.centroid.df.d <- data.frame(cutoffs = seq(0,0.000075, 0.000001), cent.distance = mean.centroidDists.d) # combines with cutoffs
 # also add layer that shows average percent of Hashes chopped for each cutoff
-mean.exclpercent <- rowMeans(as.data.frame(dup.output$excl.percents)) *100 #percents, not proportions
-exclpercent.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), exclperc = mean.exclpercent)
+mean.exclpercent.d <- rowMeans(as.data.frame(dup.output$excl.percents)) *100 #percents, not proportions
+exclpercent.df.d <- data.frame(cutoffs = seq(0,0.000075, 0.000001), exclperc = mean.exclpercent.d)
 ```
 
 ```{r plot with two y axes (1 = percent hashes excluded, 2 = dist to centroid)}
 dup.plot.A <- ggplot() +  theme_minimal() + 
-  geom_bar(mapping = aes(x = exclpercent.df$cutoffs, y = exclpercent.df$exclperc), stat = "identity", fill = "gainsboro") +
-  geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance*100), size = .5, color = "red3") +
+  geom_bar(mapping = aes(x = exclpercent.df.d$cutoffs, y = exclpercent.df.d$exclperc), stat = "identity", fill = "gainsboro") +
+  geom_point(mapping = aes(x = cutoff.centroid.df.d$cutoffs, y = cutoff.centroid.df.d$cent.distance*100), size = .5, color = "red3") +
   scale_x_continuous(name = "Proportion Cutoff") +
   scale_y_continuous(name = " %  Excluded",
       labels = function(b) { paste0(b, "%")}, 
@@ -195,18 +195,18 @@ dup.plot.A
 ```
 
 ```{r plot with 1 y axis = dist to centroid)}
-dup.plot.B <-  ggplot() +  theme_minimal() + geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance), size = .5, color = "red3") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "red3")) + scale_y_continuous(name = " Distance to Centroid") + xlab("Proportion Cutoff") 
+dup.plot.B <-  ggplot() +  theme_minimal() + geom_point(mapping = aes(x = cutoff.centroid.df.d$cutoffs, y = cutoff.centroid.df.d$cent.distance), size = .5, color = "red3") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "red3")) + scale_y_continuous(name = " Distance to Centroid") + xlab("Proportion Cutoff") 
 
 dup.plot.B 
 ```
 
 ```{r violin plot}
- violin_dat<-  as.data.frame(dup.output$excl.percents) %>% mutate(cutoffs = seq(0,0.000075, 0.000001)) 
-violin_dat$cutoffs <- as.factor(violin_dat$cutoffs)
-bottles <- colnames(violin_dat)[1:13]
-violin_long <- pivot_longer(test, cols = bottles, names_to = "bottles", values_to = "percent_excl" )
+ violin_dat.d<-  as.data.frame(dup.output$excl.percents) %>% mutate(cutoffs = seq(0,0.000075, 0.000001)) 
+violin_dat.d$cutoffs <- as.factor(violin_dat.d$cutoffs)
+bottles.d <- colnames(violin_dat.d)[1:13]
+violin_long.d <- pivot_longer(violin_dat.d, cols = bottles.d, names_to = "bottles", values_to = "percent_excl" )
 
-dup.plot.C <- ggplot(violin_long, aes(x=cutoffs, y=percent_excl*100, fill = cutoffs)) + scale_x_discrete(limits=c("0", "1e-05", "2e-05", "3e-05" ,"4e-05" ,"5e-05", "6e-05" ,"7e-05")) + geom_violin() + labs(x="Proportion Cutoff", y = "% of Hashes Excluded") + scale_fill_brewer(palette="Paired") + theme_minimal()
+dup.plot.C <- ggplot(violin_long.d, aes(x=cutoffs, y=percent_excl*100, fill = cutoffs)) + scale_x_discrete(limits=c("0", "1e-05", "2e-05", "3e-05" ,"4e-05" ,"5e-05", "6e-05" ,"7e-05")) + geom_violin() + labs(x="Proportion Cutoff", y = "% of Hashes Excluded") + scale_fill_brewer(palette="Paired") + theme_minimal()
 
 dup.plot.C
 # why are there so many hashes excluded when cutoff is 0? need to check how violin plot is grouping
