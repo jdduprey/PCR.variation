@@ -26,14 +26,14 @@ trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
 ```
 
 ```{r standard deviation of each Hash}
-SD.across.PCR <- function(df, PCR.col.numbers){
+SD.across.rows <- function(df, col.numbers){ # here, col.numbers corresponds to 3 PCR columns
   df$StanDev <- NA
-  PCRs.only <- df[,PCR.col.numbers]
- df$StanDev <- apply(PCRs.only, MARGIN = 1, sd)
+  values.only <- df[,col.numbers]
+ df$StanDev <- apply(values.only, MARGIN = 1, sd)
  return(df)
 }
 
-trip.SDs <- SD.across.PCR(trip.proportion.reads, c(4:6))
+SD.tech.output <- SD.across.rows(trip.proportion.reads, c(4:6))
 ```
 
 Now, I'll do the same but with different hash rarity cutoffs. This involves:
@@ -51,6 +51,7 @@ SDcutoffs <- function(df, cutoffs){
   
   lognormal.means <- data.frame(cutoffs = cutoffs, logmeans = rep(NA, length(cutoffs)), exclpercent =rep(NA, length(cutoffs)))
    SD.dists <- matrix(NA, ncol=length(cutoffs), nrow=length(df$Hash),length(cutoffs)) 
+   # we can keep track of how SDs are distributed bassed on cutoffs
   
      meanProp.acrossPCR <- df %>% group_by(Hash) %>% summarise(meanProp.PCR = mean(c(PCR1_prop, PCR2_prop,PCR3_prop))) %>% arrange(desc(meanProp.PCR)) # to get rarity order
     
@@ -60,7 +61,7 @@ SDcutoffs <- function(df, cutoffs){
       
       PCR.tib <- df %>% filter(Hash %in% sub.tib$Hash) %>% select(!c(Hash, bio,Miseq_run)) # all PCR props corresponding to remaining hashes
       
-     PCR.SD.tib <- SD.across.PCR(PCR.tib, c(1:3))
+     PCR.SD.tib <- SD.across.rows(PCR.tib, c(1:3))
      SD.dists[1:length(PCR.SD.tib$StanDev),i] <- log(PCR.SD.tib$StanDev)
   lognormal.means[i,2]  <- exp(mean(log(PCR.SD.tib$StanDev)) + (((sd(log(PCR.SD.tib$StanDev))^2)/2)))
   
@@ -97,6 +98,7 @@ grid.arrange(SDvsProp.plot,ChoppedvsProp.plot, nrow=1)
 # Part B. ASV Variation within Biological Replicates (also only triplicates)
 
 ## Description:
+  - Main goal of code below is to get distribution & mean of ASV variation within Biological and PCR replicates combined, and subtract PCR variation to isolate bio variation
   - The code below creates a nested df where each table belongs to a certain sample (eg, PO20170311)
   - Each table has columns corresponding to every bottle/PCR combination (A.1, B.1, C.2, C.3, etc) and rows corresponding to each ASV found. Values = proportions within a specific bottle
   -Take the standard deviations of each ASV's proportions (across different bio.PCRs)
@@ -121,15 +123,37 @@ pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0)
 # not actually averaging anything, pivot_wider just gets confused about duplicate rows so need for explicit code distinguishing each row 
 ```
 
-```{r}
-nested.props
+Make and run function that gets SDs across bio.PCRs for each ASV within a sample (uses function from above, SD.across.rows())
+
+```{r Getting SD dist function and output}
+# list = list of n dataframes (n = # of samples). Each dataframe's 1st col is Hash IDs, and all other columns are bio.PCRs (A.2, B.1, etc.) Values are proportions of each Hash within its respective bottle & PCR
+# nSamples are the number of distinct samples (ex,PO20170311)
+
+SD.by.BioPCR <- function(list, nSamples){
+  meanSD <- rep(NA, nSamples)
+  for(i in 1:nSamples){
+    SD.output <- SD.across.rows(list[[i]], c(2:dim(list[[i]])[2]))#2nd argument = all columns after hash column 
+    meanSD[i] <- mean(SD.output$StanDev) 
+     print(i)
+  }
+  return(meanSD)
+}
+
+SD.bio.tech.output<- SD.by.BioPCR(nested.props$data, length(nested.props$sample))
+hist(SD.bio.tech.output)
 ```
 
+Questions: 
+1) is it okay to average SDs across ASVs within a sample? 
+2) When taking the mean of the standard deviations across ASVs, should I be taking a normal mean or a lognormal mean? this applies both within the function, and taking the final mean of variation for biological and PCR replicates combined. 
+3) Also keep in mind that this is not discriminating between samples with different numbers of biological replicates.
 
+```{r isolate bio var}
+mean(SD.bio.tech.output) 
+mean(SD.tech.output$StanDev)
+```
 
-
-
-
+So, that's all wrong...tech variability shouldn't be higher than tech+bio variability. Need to revisit how we can compare these two sources of variability. 
 
 
 
