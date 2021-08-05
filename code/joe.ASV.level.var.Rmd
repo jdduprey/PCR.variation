@@ -12,18 +12,30 @@ library(vegan)
 library(ggplot2)
 ```
 
-load Helen's clean proportion data for triplicates 
+load Helen's clean proportion data for triplicates, undo the mess we made by trying to put 
+data in wide form, and end up with 3 columns describing samples - time.loc, bio, PCR
 ```{r}
 trip.prop <- read.csv('../data/PCR.proportions.clean.csv')
 
-trip.prop.var <- trip.prop %>% 
-  rowwise() %>% 
-  mutate(mean = mean(c_across(PCR1_prop:PCR3_prop))) %>%
-  mutate(sd = sd(c_across(PCR1_prop:PCR3_prop))) 
+trip.long <- trip.prop %>%
+  pivot_longer(cols=c('PCR1_prop','PCR2_prop','PCR3_prop'), names_to='tech',values_to='PropRead') 
+
+trip.long$tech <- case_when(
+  trip.long$tech =='PCR1_prop' ~ '1',
+  trip.long$tech =='PCR2_prop' ~ '2', 
+  trip.long$tech =='PCR3_prop' ~ '3'
+)
+
+trip.long <- trip.long %>%
+  unite(PCR, bio, tech, sep='.', remove=FALSE) %>%
+  separate(col=bio, into=c('time.loc','foo'), sep=10, remove=FALSE) %>%
+  select(-c(foo,tech))
 
 ```
 
 ```{r}
-hist(log(trip.prop.var$sd), breaks = 80)
+test <- trip.long %>%
+  group_by(time.loc) %>%
+  nest()
 ```
 
