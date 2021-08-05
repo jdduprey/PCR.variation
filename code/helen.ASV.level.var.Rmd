@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r dependencies, include=FALSE}
 library(tidyverse)
 library(gridExtra)
+library(stringi)
 ```
 
 # Part A. ASV Variation within Technical Replicates
@@ -73,9 +74,9 @@ SDcutoffs <- function(df, cutoffs){
 output<- SDcutoffs(trip.proportion.reads,seq(0, 0.0003, 0.00001))
 
 # check the lognormal distributions for SDs of each cutoff...a few are a little asymmetrical (also loop crashes sometimes depending on how large cutoff sequence so beware)
-for(i in 1:length(seq(0, 0.0003, 0.00001))){
-  hist(output[[2]][,i])
-}
+#for(i in 1:length(seq(0, 0.0003, 0.00001))){
+#  hist(output[[2]][,i])
+#}
 ```
 
 So the SD lognormal distributions look pretty good, but some are slightly asymmetrical. Now let's plot to see how average SD between PCR replicates changed between proportion cutoffs.
@@ -109,22 +110,20 @@ get.PCRn <- long.props %>% mutate("PCRn" = stri_sub(PCR,4,-6)) %>% select(-c(bio
 nested.props <- get.PCRn %>% unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% nest(data = c(bio.PCR,Hash,Proportion))
 ```
 
-Now I want to find out which samples (rows of long.reads.C) have > or < 3 biological replicates. 
+Now I want to convert each sample's df to have columns for each bio.PCR ID
 
-```{r Number of Biological replicates}
+```{r Widen data so that bio.PCRs are columns}
 for(i in 1:length(nested.props$sample)){
-  # how many unique bio.PCRs (A.1, E.3, etc) there are in each sample, divide by 3 to see how many don't have 3 bio replicates
-  print(c(i,nrow(unique(nested.props$data[[i]][,1]))/3))
+  nested.props$data[[i]] <-  nested.props$data[[i]] %>% group_by(bio.PCR,Hash) %>% summarise(Proportion = mean(Proportion)) %>%  
+pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  print(i)
 }
-
-#1:6, 23,30,44:46, 59,63,67,69,71,74,76
+# not actually averaging anything, pivot_wider just gets confused about duplicate rows so need for explicit code distinguishing each row 
 ```
 
-
-
-
-
-
+```{r}
+nested.props
+```
 
 
 
