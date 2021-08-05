@@ -29,7 +29,9 @@ by.tech.table <- raw.ASVs %>%
   filter(str_detect(sample, "k+", TRUE)) %>% 
   separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE)
  
-by.tech.table <- by.tech.table %>% mutate(bio = gsub("_","", by.tech.table$bio)) %>% mutate(sample = gsub("_","", by.tech.table$sample))
+by.tech.table <- by.tech.table %>% 
+  mutate(bio = gsub("_","", by.tech.table$bio)) %>% 
+  mutate(sample = gsub("_","", by.tech.table$sample))
 
 # check for repeats 
 by.tech.table %>%

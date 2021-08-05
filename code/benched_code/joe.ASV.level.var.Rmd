@@ -1,0 +1,70 @@
+---
+title: "joe.ASV.level.var"
+author: "Helen Casendino, Joe Duprey"
+date: "8/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(vegan)
+library(ggplot2)
+```
+
+load Helen's clean proportion data for triplicates, undo the mess we made by trying to put 
+data in wide form, and end up with 3 columns describing samples - time.loc, bio, PCR
+```{r}
+trip.prop <- read.csv('../data/PCR.proportions.clean.csv')
+
+trip.long <- trip.prop %>%
+  pivot_longer(cols=c('PCR1_prop','PCR2_prop','PCR3_prop'), names_to='tech',values_to='PropRead') 
+
+trip.long$tech <- case_when(
+  trip.long$tech =='PCR1_prop' ~ '1',
+  trip.long$tech =='PCR2_prop' ~ '2', 
+  trip.long$tech =='PCR3_prop' ~ '3'
+)
+
+
+  
+  
+# trip.long <- trip.long %>%
+#   unite(PCR, bio, tech, sep='.', remove=FALSE) %>%
+#   separate(col=bio, into=c('time.loc','foo'), sep=10, remove=FALSE) %>%
+#   select(-c(foo,tech)) %>%
+#   separate(col=bio, into=c('foo2','bio.tag'), sep=10, remove=FALSE) %>% 
+#   separate(col=PCR, into=c('foo3','PCR.tag'), sep=12, remove=FALSE) %>%
+#   select(-c(foo2,foo3)) 
+#   
+  
+```
+
+```{r}
+repeats <- trip.long %>%
+  group_by(Miseq_run, time.loc, bio.tag, PCR.tag, Hash, PropRead) %>%
+  filter(n()>1)
+```
+
+
+```{r}
+
+#make small df in excel to test code ? 
+test.df <- trip.long %>%
+  select(Miseq_run, time.loc, bio.tag, PCR.tag, Hash, PropRead) #%>%
+  #pivot_wider(names_from=bio.tag, values_from=PropRead, values_fill=0)  
+
+```
+
+```{r}
+nested.events <- trip.long %>%
+  group_by(time.loc) %>%
+  nest()
+```
+
+```{r}
+for (i in nested.events[[2]]){
+  print(i)
+}
+```
+
