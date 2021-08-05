@@ -114,17 +114,16 @@ Now I want to convert each sample's df to have columns for each bio.PCR ID
 
 ```{r Widen data so that bio.PCRs are columns}
 for(i in 1:length(nested.props$sample)){
-  nested.props$data[[i]] <-  nested.props$data[[i]] %>% mutate(grouped_id = row_number()) %>% 
-pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) %>% select(-grouped_id)
+  nested.props$data[[i]] <-  nested.props$data[[i]] %>% group_by(bio.PCR,Hash) %>% summarise(Proportion = mean(Proportion)) %>%  
+pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
   print(i)
 }
+# not actually averaging anything, pivot_wider just gets confused about duplicate rows so need for explicit code distinguishing each row 
 ```
 
-
-
-
-
-
+```{r}
+nested.props
+```
 
 
 
