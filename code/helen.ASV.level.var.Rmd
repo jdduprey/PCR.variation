@@ -128,10 +128,14 @@ nested.props <- get.PCRn %>%
 Now I want to convert each sample's df to have columns for each bio.PCR ID
 
 ```{r Widen data so that bio.PCRs are columns}
-for(i in 1:length(nested.props$sample)){
-  nested.props$data[[i]] <-  nested.props$data[[i]] %>% group_by(bio.PCR,Hash) %>% summarise(Proportion = mean(Proportion)) %>%  
-pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
-  print(i)
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+    
+    print(i)
 }
 # not actually averaging anything, pivot_wider just gets confused about duplicate rows so need for explicit code distinguishing each row 
 ```
@@ -143,17 +147,20 @@ Make and run function that gets SDs across bio.PCRs for each ASV within a sample
 # nSamples are the number of distinct samples (ex,PO20170311)
 
 SD.by.BioPCR <- function(list, nSamples){
+  
   meanSD <- rep(NA, nSamples)
+  
   for(i in 1:nSamples){
     SD.output <- SD.across.rows(list[[i]], c(2:dim(list[[i]])[2]))#2nd argument = all columns after hash column 
     meanSD[i] <- mean(SD.output$StanDev) 
      print(i)
   }
+  
   return(meanSD)
 }
 
 SD.bio.tech.output<- SD.by.BioPCR(nested.props$data, length(nested.props$sample))
-hist(SD.bio.tech.output)
+hist(SD.bio.tech.output, breaks=20)
 ```
 
 Questions: 
