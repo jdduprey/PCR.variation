@@ -29,7 +29,7 @@ trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
 SD.across.rows <- function(df, col.numbers){ # here, col.numbers corresponds to 3 PCR columns
   df$StanDev <- NA
   values.only <- df[,col.numbers]
-  df$StanDev <- apply(values.only, MARGIN = 1, sd)
+  df$StanDev <- apply(values.only, MARGIN = 1, sd, na.rm=TRUE) #joe added na.rm=TRUE
 
   return(df)
 }
@@ -176,5 +176,30 @@ mean(SD.tech.output$StanDev)
 So, that's all wrong...tech variability shouldn't be higher than tech+bio variability. Need to revisit how we can compare these two sources of variability. 
 
 
+```{r}
+length(SD.bio.tech.output)
+length(SD.tech.output$StanDev)
+```
 
+Joe messing around trying to get deviation for each ASV in the un-nested table?
+
+```{r}
+unnested.props <- unnest(nested.props, cols=c(data))
+
+SD.bio.output <- SD.across.rows(unnested.props, c(3:20))
+# uh oh why is this a different value than what Helen got?
+mean(SD.bio.output$StanDev)
+
+length(SD.bio.output$StanDev)
+
+#lets look at the hists 
+hist(SD.tech.output$StanDev, breaks=20)
+hist(SD.bio.output$StanDev, breaks=20)
+
+hist(log(SD.tech.output$StanDev), breaks=20)
+hist(log(SD.bio.output$StanDev), breaks=20)
+
+boxplot(log(SD.tech.output$StanDev))
+boxplot(log(SD.bio.output$StanDev))
+```
 
