@@ -29,8 +29,9 @@ trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
 SD.across.rows <- function(df, col.numbers){ # here, col.numbers corresponds to 3 PCR columns
   df$StanDev <- NA
   values.only <- df[,col.numbers]
- df$StanDev <- apply(values.only, MARGIN = 1, sd)
- return(df)
+  df$StanDev <- apply(values.only, MARGIN = 1, sd)
+
+  return(df)
 }
 
 SD.tech.output <- SD.across.rows(trip.proportion.reads, c(4:6))
@@ -100,9 +101,6 @@ ChoppedvsProp.plot <-  ggplot() +  theme_minimal() + geom_line(mapping = aes(x =
 grid.arrange(SDvsProp.plot,ChoppedvsProp.plot, nrow=1)
 ```
 
-
-
-
 # Part B. ASV Variation within Biological Replicates (also only triplicates)
 
 ## Description:
@@ -113,11 +111,18 @@ grid.arrange(SDvsProp.plot,ChoppedvsProp.plot, nrow=1)
   - End up with a single distribution of SDs for each distinct sampling event
 
 ```{r Data Organization: dataset specific}
-long.props <- trip.proportion.reads %>% mutate(sample = gsub('.{1}$', '', bio)) %>% mutate(bottle = stri_sub(bio,-1)) %>% pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
 
-get.PCRn <- long.props %>% mutate("PCRn" = stri_sub(PCR,4,-6)) %>% select(-c(bio,Miseq_run,PCR))
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,Miseq_run,PCR))
 
-nested.props <- get.PCRn %>% unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% nest(data = c(bio.PCR,Hash,Proportion))
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
 ```
 
 Now I want to convert each sample's df to have columns for each bio.PCR ID
