@@ -156,7 +156,7 @@ write_csv(PCR.proportions.clean, '../data/PCR.proportions.clean.csv')
 I also want to create a csv with eDNA index values instead of proportions. 
 
 ```{r Sourcing eDNA index func}
-# source('.../code/eDNA indexing/helen.eDNA_index.R') # modified index function 
+# source("/Users/helencasendino/Desktop/PCR.variation/code/eDNA indexing/helen.eDNA_index.R") # modified index function (need to fix source path)
 calc_eDNA_index <- function(df, PCRcols) { 
   
   for(i in 1:length(PCRcols)){
