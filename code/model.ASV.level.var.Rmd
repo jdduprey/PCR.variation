@@ -39,7 +39,8 @@ Sum of Squares function.
 
 ```{r Sum of Squares}
 SSQ_func <- function(par, df, PCRcols){
- 
+ print(Sys.time())
+  
   tau <- par[1] # variation parameter
   squares <- rep(NA,length(df$Hash))
   
@@ -59,7 +60,8 @@ SSQ_func <- function(par, df, PCRcols){
    squares[j] <- 1e10 # penalty for Phat being outside (0,1)
  }
   # if((j %in% seq(1, 90000, 10000)) == T){print(j)} # progress bar
-      }
+  }
+  print(Sys.time())
   return(sum(squares))
 }
 ```
@@ -68,6 +70,7 @@ Optim tau estimation.
 
 ```{r parameter estimation}
 output <- optim(par=c(0.02), fn=SSQ_func, method="BFGS", df=trip.props, PCRcols=c(4:6))
+# tau estimation: 0.03928533 (took 10 minutes)
 ```
 
 ## Step 2: Bio variation
