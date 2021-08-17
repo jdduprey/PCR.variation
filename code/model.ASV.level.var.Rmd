@@ -1,0 +1,140 @@
+---
+title: "model.ASV.level.var.Rmd"
+author: "Helen Casendino"
+date: "8/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r dependencies, include=FALSE}
+library(tidyverse)
+library(stringi)
+```
+
+# Purpose 
+This is code for a pretty straight-forward model of technical and biological variation within ASVs. 
+
+## Steps:
+ 1. Tech variability:
+      a) Each sample-bottle-Hash row (3 PCR columns) is a vector called Pobs
+      b) Phat is a vector of the same length, and each element = mean(Pobs) + rnorm(x=1, mean=0, sd=tau^2)
+      c) for each row, (sd(Pobs) - sd(Phat))^2 is calculated. For Phat values that exceed the (0,1) interval, 1e10 is added to this calculation (need to tweak this a bit).
+      d) The output of function "SSQ_func" is the sum of these squares.
+      d) optim scans over values of tau to find the variation parameter that reflects the observed spread of proportion data between PCR replicates the best.
+  
+  2. Bio variability:
+ 
+ 
+## Data
+
+```{r read in triplicate proportion data} 
+trip.props <- read.csv('../data/PCR.proportions.clean.csv')
+```
+
+## Step 1: Tech variation
+
+Sum of Squares function.
+
+```{r Sum of Squares}
+SSQ_func <- function(par, df, PCRcols){
+ 
+  tau <- par[1] # variation parameter
+  squares <- rep(NA,length(df$Hash))
+  
+  for(j in 1:length(df$Hash)){
+  
+  Pobs <- as.numeric(df[j,PCRcols]) # corresponds to one Hash-bio-sample combination
+  Phat <- rep(NA, length(Pobs))
+
+    for(i in 1:length(Pobs)){
+          Phat[i] <- mean(Pobs) + rnorm(1, 0, tau^2) # mean across PCR replicates + variation
+    }
+  
+  if(length(which(Phat <= 0 && Phat >= 1)) == 0){
+     squares[j] <- (sd(Pobs) - sd(Phat))^2 
+  }
+ else{
+   squares[j] <- 1e10 # penalty for Phat being outside (0,1)
+ }
+  # if((j %in% seq(1, 90000, 10000)) == T){print(j)} # progress bar
+      }
+  return(sum(squares))
+}
+```
+
+Optim tau estimation.
+
+```{r parameter estimation}
+output <- optim(par=c(0.02), fn=SSQ_func, method="BFGS", df=trip.props, PCRcols=c(4:6))
+```
+
+## Step 2: Bio variation
+
+First, we have to nest and widen the data so that bottle.PCRs are columns (A.1,A.2, B.1, etc.)
+
+```{r Widen data for bio+tech rep columns}
+long.props <- trip.props %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,Miseq_run,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  
+  print(i)
+}
+```
+
+Next, we want a likelihood profile of sigma and tau values (??) 
+
+```{r Sum of Squares Likelihood profile??}
+SSQ_func_bio <- function(list, nSamples, tauvec, sigmavec){
+ 
+for(i in 1:length(sigmavec)){
+  sigma <- sigmavec[i] # bottle variation parameter
+ 
+  for(k in 1:length(tauvec)){
+    tau <- tauvec[k]
+    all.squares <- c("start")
+    
+    for(m in 1:nSamples){
+        df <- list[[m]]
+        repCols <- c(2:dim(list[[m]])[2]) #bio.PCR column indices
+        squares <- rep(NA,length(df$Hash))
+        
+        for(j in 1:length(df$Hash)){
+               Pobs <- as.numeric(df[j,repCols])
+               Phat <- rep(NA, length(Pobs))
+
+              for(i in 1:length(Pobs)){
+                   Phat[i] <- mean(Pobs) + rnorm(1, 0, ((tau^2) + (sigma^2)) )
+                  }
+  
+                if(length(which(Phat <= 0 && Phat >= 1)) == 0){
+                   squares[j] <- (sd(Pobs) - sd(Phat))^2 
+                      }
+                else{squares[j] <- 1e10} # penalty for Phat being outside (0,1)
+              }
+          all.squares[(length(all.squares) + 1):(length(squares) + length(all.squares))] <- squares
+    }
+      
+  }
+}
+}
+```
+

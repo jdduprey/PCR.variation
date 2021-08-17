@@ -1,0 +1,89 @@
+---
+title: "Swarming sequqnces"
+output: html_notebook
+---
+Swarm gets a fasta file with the headers in the format:
+`>SEQID;size=nReads`
+That way it can take into account the abundance of each ASV to decide which one is the true sequence
+
+I am using here the output from the demultiplexer_for_dada2 pipeline, without samples, reads or ASVs removed or modified 
+
+```{r}
+library (tidyverse)
+library (here)
+library (seqinr) # To write fasta
+```
+
+```{r datasets}
+
+ASV <- read_csv(here("input", "ASV_table_example.csv"))
+seqs <- read_csv(here("input", "hash_key_example.csv"))
+
+```
+
+Add abundance to the header. First calculate sums. If you were to do this by SITE-DATE (so you restrict the aggregation to one sampling event), you would have to add this information in the group_by
+
+```{r}
+ASV %>% 
+  group_by(Hash) %>% 
+  summarise (nReads = sum (nReads)) -> ASV.sum
+```
+
+Check we have sequences for all ASVs
+```{r}
+anti_join(ASV.sum, seqs) # 0 is good
+```
+
+Now join, and create the new name column. we save the object as we might need it to re establish the aggregated df
+
+```{r jointed}
+left_join(ASV.sum, seqs) %>% 
+  unite(Hash, nReads, col = "new.name", sep= ";size=" ,remove = F) -> Conversion.df
+```
+
+```{r save the new fasta}
+write.fasta(sequences = as.list(Conversion.df$Sequence),
+            names = as.list(Conversion.df$new.name), 
+            file.out = here("input", "fasta_ready_for_swarm.fasta")
+            )
+
+```
+
+#### Check the file looks like we want
+
+```{r}
+insect::readFASTA(here("input", "fasta_ready_for_swarm.fasta"))
+```
+
+## Now run the script 
+
+Run Swarm using this script. It was made by Jimmy O'Donnell, one of Ryan's postdocs. Do it directly on the terminal bc it does not find it from RStudio
+
+
+
+`bash /Path/to/the/project/code/cluster_swarm.sh  /Path/to/the/project/Input/fasta_ready_for_swarm.fasta`
+
+## Import the output
+
+Load the conversion table and the classification summary
+
+```{r}
+Swarm.conversion <- read_csv(here("Input", "OTUs_swarm","dups_to_otus.csv")) %>% 
+  separate(Query, into = "Hash") %>% 
+  separate(Match, into = "NewMatch")
+  
+n_distinct(Swarm.conversion$Match)
+
+```
+
+Now join the ASVs
+
+```{r}
+ASV %>% 
+  left_join(Swarm.conversion) %>% 
+  group_by(sample, NewMatch) %>% 
+  summarise (nReads = sum(nReads)) %>% 
+  rename(Hash = NewMatch) %>% 
+  write_csv(here("input", "Swarm_table_example.csv"))
+```
+
