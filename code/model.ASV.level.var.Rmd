@@ -1,0 +1,49 @@
+---
+title: "model.ASV.level.var.Rmd"
+author: "Helen Casendino"
+date: "8/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r dependencies, include=FALSE}
+library(tidyverse)
+```
+
+# Purpose 
+This is code for a pretty straight-forward model of technical and biological variation within ASVs. 
+
+## Steps:
+ 1. 
+ 
+ 
+```{r read in triplicate proportion data} 
+trip.props <- read.csv('../data/PCR.proportions.clean.csv')
+```
+
+```{r model}
+SSQ_func <- function(df, pars){
+ 
+  tau <- pars[1] # variation parameter
+  squares <- rep(NA,length(df$Hash))
+  
+  for(j in 1:length(df$Hash)){
+  
+  Pobs <- as.numeric(df[j,4:6]) # corresponds to one Hash-bio-sample combination
+  Phat <- rep(NA, length(Pobs))
+
+    for(i in 1:length(Pobs)){
+          Phat[i] <- mean(Pobs) + rnorm(1, 0, tau^2) # mean across PCR replicates + variation
+            }
+  squares[j] <- (sd(Pobs) - sd(Phat))^2 # how different is the spread of the predicted distribution from the spread of the observed distribution
+  if(j == round(0.5*length(df$Hash))){print("Halfway!")}
+  }
+  return(sum(squares))
+}
+```
+
+```{r parameter estimation}
+
+```
