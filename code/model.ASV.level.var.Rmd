@@ -68,14 +68,14 @@ SSQ_func <- function(par, df, PCRcols){
 
 Optim tau estimation.
 
-```{r parameter estimation}
-output <- optim(par=c(0.02), fn=SSQ_func, method="BFGS", df=trip.props, PCRcols=c(4:6))
+```{r tau parameter estimation}
+output.PCR <- optim(par=0.02, fn=SSQ_func, method="BFGS", df=trip.props, PCRcols=c(4:6))
 # tau estimation: 0.03928533 (took 10 minutes)
 ```
 
 ## Step 2: Bio variation
 
-First, we have to nest and widen the data so that bottle.PCRs are columns (A.1,A.2, B.1, etc.)
+First, we have to nest and widen the data so that bottle.PCRs are columns (A.1,A.2, B.1, etc.). This is the same code from helen.ASV.level.var.Rmd, but we can't save it as a csv because we need a nested dataframe. When it's nested by sample, we can have different column for the unique number of bio.PCRs (A.1,B.3,E.2, etc.).
 
 ```{r Widen data for bio+tech rep columns}
 long.props <- trip.props %>% 
@@ -103,16 +103,13 @@ for(i in 1:length(nested.props$sample)) {
 }
 ```
 
-Next, we want a likelihood profile of sigma and tau values (??) 
+Next, we will use the "MLE" of tau, with optim, to calculate the best value of the sigma paramater (bioPCR variability will be drawn from normal distribution (mean = 0, sd = tau^2 + sigma^2))
 
 ```{r Sum of Squares Likelihood profile??}
-SSQ_func_bio <- function(list, nSamples, tauvec, sigmavec){
- 
-for(i in 1:length(sigmavec)){
-  sigma <- sigmavec[i] # bottle variation parameter
- 
-  for(k in 1:length(tauvec)){
-    tau <- tauvec[k]
+SSQ_func_bioPCR <- function(par, tau, list, nSamples){
+   print(Sys.time()) # keep track of how long optim function is taking
+  
+  sigma <- par[1] # bottle variation parameter
     all.squares <- c("start")
     
     for(m in 1:nSamples){
@@ -133,11 +130,26 @@ for(i in 1:length(sigmavec)){
                       }
                 else{squares[j] <- 1e10} # penalty for Phat being outside (0,1)
               }
-          all.squares[(length(all.squares) + 1):(length(squares) + length(all.squares))] <- squares
+          all.squares[(length(all.squares) + 1):(length(squares) + length(all.squares))] <- squares # populates all.squares with square values of each hash across bottle+PCR in each sample 
     }
-      
-  }
-}
+    print(Sys.time()) 
+    return(sum(as.numeric(all.squares)))
 }
 ```
+
+Run optim
+
+```{r sigma parameter estimation}
+output.bioPCR <- optim(par=0.02, fn=SSQ_func_bioPCR, method="BFGS",
+                    tau=0.03928533,
+                    list=nested.props$data, 
+                    nSamples=length(unique(nested.props$sample)))
+
+# error: NAs introduced by coercionError in optim(par = 0.02, fn = SSQ_func_bioPCR, method = "BFGS", tau = 0.03928533,: initial value in 'vmmin' is not finite....hmmm
+```
+
+Now that we have "confidence intervals" and "MLEs" of sigma and tau, we can create a sum of squares profile across the "confidence intervals" of each paraamter.
+
+
+
 
