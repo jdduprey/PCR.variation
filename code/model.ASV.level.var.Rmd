@@ -1,7 +1,7 @@
 ---
 title: "model.ASV.level.var.Rmd"
 author: "Helen Casendino"
-date: "8/16/2021"
+date: "8/19/2021"
 output: html_document
 ---
 
@@ -21,11 +21,15 @@ This is code for a pretty straight-forward model of technical and biological var
       a) Each sample-bottle-Hash row (3 PCR columns) is a vector called Pobs
       b) Phat is a vector of the same length, and each element = mean(Pobs) + rnorm(x=1, mean=0, sd=tau^2)
       c) for each row, (sd(Pobs) - sd(Phat))^2 is calculated. For Phat values that exceed the (0,1) interval, 1e10 is added to this calculation (need to tweak this a bit).
-      d) The output of function "SSQ_func" is the sum of these squares.
+      d) The output of function "SSQ_func_PCR" is the sum of these squares.
       d) optim scans over values of tau to find the variation parameter that reflects the observed spread of proportion data between PCR replicates the best.
   
   2. Bio variability:
- 
+      a)Repeat above SSQ function, but variation distribution is now Normal(mean = 0, sd = tau^2 + sigma^2), instead of just tau^2
+      b) use optim with best fit value of tau to estimate best fit estimate of sigma
+  
+  3. SSQ Profile
+      a) scan across values near best fit values of sigma and tau to get a sum of squares profile 
  
 ## Data
 
@@ -37,8 +41,8 @@ trip.props <- read.csv('../data/PCR.proportions.clean.csv')
 
 Sum of Squares function.
 
-```{r Sum of Squares}
-SSQ_func <- function(par, df, PCRcols){
+```{r Sum of Squares for variation between technical replicates}
+SSQ_func_PCR <- function(par, df, PCRcols){
  print(Sys.time())
   
   tau <- par[1] # variation parameter
@@ -69,9 +73,16 @@ SSQ_func <- function(par, df, PCRcols){
 Optim tau estimation.
 
 ```{r tau parameter estimation}
-output.PCR <- optim(par=0.02, fn=SSQ_func, method="BFGS", df=trip.props, PCRcols=c(4:6))
+output.PCR <- optim(par=0.02, 
+                    fn=SSQ_func_PCR, 
+                    method="BFGS", 
+                    df=trip.props, 
+                    PCRcols=c(4:6))
+# using BFGS because Nelder-Mead doesn't like one-parameter optimization
 # tau estimation: 0.03928533 (took 10 minutes)
 ```
+
+So our tau estimate is 0.039. But remember, variation from the mean is drawn from a normal distribution with mean = 0 and sd = *tau squared*, meaning that the "variation distribution" has a standard deviation of 0.039^2, or 0.0015. 
 
 ## Step 2: Bio variation
 
@@ -105,7 +116,7 @@ for(i in 1:length(nested.props$sample)) {
 
 Next, we will use the "MLE" of tau, with optim, to calculate the best value of the sigma paramater (bioPCR variability will be drawn from normal distribution (mean = 0, sd = tau^2 + sigma^2))
 
-```{r Sum of Squares Likelihood profile??}
+```{r Sum of Squares for variation between technical & biological replicates}
 SSQ_func_bioPCR <- function(par, tau, list, nSamples){
    print(Sys.time()) # keep track of how long optim function is taking
   
@@ -133,7 +144,7 @@ SSQ_func_bioPCR <- function(par, tau, list, nSamples){
           all.squares[(length(all.squares) + 1):(length(squares) + length(all.squares))] <- squares # populates all.squares with square values of each hash across bottle+PCR in each sample 
     }
     print(Sys.time()) 
-    return(sum(as.numeric(all.squares)))
+    return(sum(as.numeric(all.squares[-1])))
 }
 ```
 
@@ -144,12 +155,38 @@ output.bioPCR <- optim(par=0.02, fn=SSQ_func_bioPCR, method="BFGS",
                     tau=0.03928533,
                     list=nested.props$data, 
                     nSamples=length(unique(nested.props$sample)))
+# 13 minutes, sigma = 0.003761089 
+```
+Sigma estimate = 0.0038 (0.0038^2 = 1.444e-05, standard deviation of variation dist)
 
-# error: NAs introduced by coercionError in optim(par = 0.02, fn = SSQ_func_bioPCR, method = "BFGS", tau = 0.03928533,: initial value in 'vmmin' is not finite....hmmm
+Now we need to get range of plausible values for both tau and sigma ("confidence intervals"). With tau, it shouldn't be too hard (still need to figure this out), but we can use the technical-only model to get a range of plausible values for tau that explain PCR variation. 
+
+Then, we can loop through these values, which we know represent our confidence interval for tau, then use optim with the technical-biological model to figure out what sigma best fits the model for each tau value. 
+
+```{r Function getting optimized values of sigma from plausible taus}
+SSQ_profile <- function(par, tauvec, list, nSamples){
+    pars.df <- data.frame(taus = tauvec, sigmas = rep(NA,length(tauvec)), SSQ=rep(NA,length(tauvec)) )
+  
+    for(k in 1:length(tauvec)){
+      tau <- tauvec[k]
+      output <- optim(par=par, fn=SSQ_func_bioPCR, method="BFGS",
+                    tau=tau,
+                    list=list, 
+                    nSamples=nSamples)
+      
+      pars.df[k,2:3] <- c(output$par,output$value)
+    }
+  return(pars.df)
+}
 ```
 
-Now that we have "confidence intervals" and "MLEs" of sigma and tau, we can create a sum of squares profile across the "confidence intervals" of each paraamter.
+```{r running the function}
+output.profile <- SSQ_profile(par = 0.0038, tauvec = seq(0.02,0.04, 0.01), list=nested.props$data, nSamples=length(unique(nested.props$sample))) # don't know what tauvec should be yet
+```
 
+Now let's plot tau vs. optimized sigma values, where size of the point indicates sum of square value (large dots = large sum of square value, worse fit)
 
-
-
+```{r plot output}
+with(output.profile,symbols(x=taus, y=sigmas, circles=SSQ, inches=1/6,ann=F, bg="steelblue2", fg=NULL))
+title( xlab="Values of Tau", ylab="Values of Sigma")
+```
