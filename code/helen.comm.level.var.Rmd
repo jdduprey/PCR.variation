@@ -212,3 +212,27 @@ dup.plot.C
 # why are there so many hashes excluded when cutoff is 0? need to check how violin plot is grouping
 
 ```
+
+
+Extra code calculating same thing as above (distance to centroids), just no exclusions and over bioPCR sets (within sampling event), not just PCR sets. 
+
+```{r}
+testfunction <- function(list, SampleVector){
+  
+  dists <- rep(NA, length(SampleVector))
+  
+  for(j in 1:length(dists)){
+    df <- list[[j]]
+    sub.tib <- df %>% select(!c(Hash))
+    nBIOPCR <- length(colnames(sub.tib))
+    flip.tib <- t(sub.tib)
+    
+    dis <- vegdist(flip.tib)
+    grouping <- factor(rep(1,nBIOPCR))
+    centroid<- betadisper(dis, group = grouping)
+    dists[j] <- mean(centroid$distances)
+    print(j)
+  }
+  return(dists)
+}
+```
