@@ -187,6 +187,7 @@ output.profile <- SSQ_profile(par = 0.0038, tauvec = seq(0.02,0.04, 0.01), list=
 Now let's plot tau vs. optimized sigma values, where size of the point indicates sum of square value (large dots = large sum of square value, worse fit)
 
 ```{r plot output}
-with(output.profile,symbols(x=taus, y=sigmas, circles=SSQ, inches=1/6,ann=F, bg="steelblue2", fg=NULL))
+with(output.profile,symbols(x=taus, y=sigmas, circles=SSQ, inches=1/6,ann=F, bg="tan3", fg=NULL))
 title( xlab="Values of Tau", ylab="Values of Sigma")
 ```
+
