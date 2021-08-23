@@ -164,6 +164,7 @@ SD.bio.tech.output<- SD.by.BioPCR(nested.props$data, length(nested.props$sample)
 SD.bio.tech.output <- as.numeric(SD.bio.tech.output[-1])
 
 hist(SD.bio.tech.output, col = "blue", main = "Distribution of SDs with No Exclusions", xlab = "Standard Deviation")
+hist(log(SD.bio.tech.output), col = "blue", main = "Distribution of log(SDs) with No Exclusions", xlab = "Standard Deviation")
 ```
 
 Questions: 
@@ -199,11 +200,11 @@ mean(SD.bio.output$StanDev)
 length(SD.bio.output$StanDev)
 
 #lets look at the hists 
-hist(SD.tech.output$StanDev, breaks=20)
-hist(SD.bio.output$StanDev, breaks=20)
+hist(SD.tech.output$StanDev, breaks=120)
+hist(SD.bio.output$StanDev, breaks=120)
 
-hist(log(SD.tech.output$StanDev), breaks=20)
-hist(log(SD.bio.output$StanDev), breaks=20)
+hist(log(SD.tech.output$StanDev), breaks=120)
+hist(log(SD.bio.output$StanDev), breaks=120)
 ```
 ```{r}
 boxplot(log(SD.tech.output$StanDev))
