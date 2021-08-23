@@ -187,7 +187,10 @@ length(SD.tech.output$StanDev)
 Joe messing around trying to get deviation for each ASV in the un-nested table?
 
 ```{r}
+
 unnested.props <- unnest(nested.props, cols=c(data))
+# write csv to data folder 
+write_csv(unnested.props, '../data/site.date.prop.csv')
 
 SD.bio.output <- SD.across.rows(unnested.props, c(3:20))
 # uh oh why is this a different value than what Helen got?
@@ -201,8 +204,10 @@ hist(SD.bio.output$StanDev, breaks=20)
 
 hist(log(SD.tech.output$StanDev), breaks=20)
 hist(log(SD.bio.output$StanDev), breaks=20)
-
+```
+```{r}
 boxplot(log(SD.tech.output$StanDev))
 boxplot(log(SD.bio.output$StanDev))
 ```
+
 
