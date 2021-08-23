@@ -120,6 +120,8 @@ get.PCRn <- long.props %>%
   mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
   select(-c(bio,Miseq_run,PCR))
 
+write_csv(get.PCRn, '../data/OA.long.standard.prop.csv')
+
 nested.props <- get.PCRn %>% 
   unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
   nest(data = c(bio.PCR,Hash,Proportion))
