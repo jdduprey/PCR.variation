@@ -49,40 +49,40 @@ Some things to fix with the function below:
   - make the function usable for duplicates as well
 
 ```{r standard deviation of each Hash with cutoff}
-SDcutoffs <- function(df, cutoffs){
-  
-  lognormal.means <- data.frame(cutoffs = cutoffs, logmeans = rep(NA, length(cutoffs)), exclpercent =rep(NA, length(cutoffs)))
-
-  SD.dists <- matrix(NA, ncol=length(cutoffs), nrow=length(df$Hash),length(cutoffs)) 
-  
-     meanProp.acrossPCR <- df %>% 
-       group_by(Hash) %>% 
-       summarise(meanProp.PCR = mean(c(PCR1_prop, PCR2_prop,PCR3_prop))) %>% 
-       arrange(desc(meanProp.PCR)) # to get rarity order
-    
-    for(i in 1:length(cutoffs)){
-      sub.tib <- meanProp.acrossPCR %>% 
-        filter(meanProp.PCR > cutoffs[i]) # chop hashes below proportion cutoff
-    
-      lognormal.means[i,3] <- 1 - (length(sub.tib$Hash)/length(meanProp.acrossPCR$Hash)) # column 3 is % of UNIQUE hashes excluded
-      
-      PCR.tib <- df %>% 
-        filter(Hash %in% sub.tib$Hash) %>% 
-        select(!c(Hash, bio,Miseq_run)) # all PCR props corresponding to remaining hashes
-      
-     PCR.SD.tib <- SD.across.rows(PCR.tib, c(1:3))
-     SD.dists[1:length(PCR.SD.tib$StanDev),i] <- log(PCR.SD.tib$StanDev)
-     
-     lognormal.means[i,2]  <- exp(mean(log(PCR.SD.tib$StanDev)) + (((sd(log(PCR.SD.tib$StanDev))^2)/2)))
-  
-   print(i) # progress bar
-  }
-     return(list(lognormal.means, SD.dists))
-}
+# SDcutoffs <- function(df, cutoffs){
+#   
+#   lognormal.means <- data.frame(cutoffs = cutoffs, logmeans = rep(NA, length(cutoffs)), exclpercent =rep(NA, length(cutoffs)))
+# 
+#   SD.dists <- matrix(NA, ncol=length(cutoffs), nrow=length(df$Hash),length(cutoffs)) 
+#   
+#      meanProp.acrossPCR <- df %>% 
+#        group_by(Hash) %>% 
+#        summarise(meanProp.PCR = mean(c(PCR1_prop, PCR2_prop,PCR3_prop))) %>% 
+#        arrange(desc(meanProp.PCR)) # to get rarity order
+#     
+#     for(i in 1:length(cutoffs)){
+#       sub.tib <- meanProp.acrossPCR %>% 
+#         filter(meanProp.PCR > cutoffs[i]) # chop hashes below proportion cutoff
+#     
+#       lognormal.means[i,3] <- 1 - (length(sub.tib$Hash)/length(meanProp.acrossPCR$Hash)) # column 3 is % of UNIQUE hashes excluded
+#       
+#       PCR.tib <- df %>% 
+#         filter(Hash %in% sub.tib$Hash) %>% 
+#         select(!c(Hash, bio,Miseq_run)) # all PCR props corresponding to remaining hashes
+#       
+#      PCR.SD.tib <- SD.across.rows(PCR.tib, c(1:3))
+#      SD.dists[1:length(PCR.SD.tib$StanDev),i] <- log(PCR.SD.tib$StanDev)
+#      
+#      lognormal.means[i,2]  <- exp(mean(log(PCR.SD.tib$StanDev)) + (((sd(log(PCR.SD.tib$StanDev))^2)/2)))
+#   
+#    print(i) # progress bar
+#   }
+#      return(list(lognormal.means, SD.dists))
+# }
 ```
 
 ```{r get output, check for lognormality}
-output<- SDcutoffs(trip.proportion.reads,seq(0, 0.0003, 0.00001))
+# output<- SDcutoffs(trip.proportion.reads,seq(0, 0.0003, 0.00001))
 
 # check the lognormal distributions for SDs of each cutoff...a few are a little asymmetrical (also loop crashes sometimes depending on how large cutoff sequence so beware)
 #for(i in 1:length(seq(0, 0.0003, 0.00001))){
@@ -94,12 +94,12 @@ So the SD lognormal distributions look pretty good, but some are slightly asymme
 
 ```{r Plotting output}
 # 1) Plot mean variability vs. cutoff
-SDvsProp.plot <-  ggplot() +  theme_minimal() + geom_line(mapping = aes(x = output[[1]][,1], y = output[[1]][,2]), size = .5, color = "red3") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "red3")) + scale_y_continuous(name = "Mean SD Across PCRs") + xlab("Proportion Cutoff") 
-
-# 2) Plot percent of unique hashes chopped vs. cutoff
-ChoppedvsProp.plot <-  ggplot() +  theme_minimal() + geom_line(mapping = aes(x = output[[1]][,1], y = output[[1]][,3]*100), size = .5, color = "darkmagenta") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "darkmagenta")) + scale_y_continuous(name = "% Unique Hashes Removed") + xlab("Proportion Cutoff")
-
-grid.arrange(SDvsProp.plot,ChoppedvsProp.plot, nrow=1)
+# SDvsProp.plot <-  ggplot() +  theme_minimal() + geom_line(mapping = aes(x = output[[1]][,1], y = output[[1]][,2]), size = .5, color = "red3") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "red3")) + scale_y_continuous(name = "Mean SD Across PCRs") + xlab("Proportion Cutoff") 
+# 
+# # 2) Plot percent of unique hashes chopped vs. cutoff
+# ChoppedvsProp.plot <-  ggplot() +  theme_minimal() + geom_line(mapping = aes(x = output[[1]][,1], y = output[[1]][,3]*100), size = .5, color = "darkmagenta") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "darkmagenta")) + scale_y_continuous(name = "% Unique Hashes Removed") + xlab("Proportion Cutoff")
+# 
+# grid.arrange(SDvsProp.plot,ChoppedvsProp.plot, nrow=1)
 ```
 
 # Part B. ASV Variation within Biological Replicates (also only triplicates)
@@ -119,7 +119,8 @@ long.props <- trip.proportion.reads %>%
 
 get.PCRn <- long.props %>% 
   mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
-  select(-c(bio,Miseq_run,PCR)) %>%
+  separate(sample, into = c('sample', 'foo'), sep=8) %>% # cut off the day lables on the 2017 samples 
+  select(-c(bio, Miseq_run, PCR, foo)) %>%
   unite(sample, bottle, col = biorep, sep = ".", remove=FALSE) %>% 
   group_by(biorep, Hash) %>%
   summarise(meanprop=sum(Proportion)/3)
@@ -152,73 +153,40 @@ for(i in 1:length(nested.props$sample)) {
 # not actually averaging anything, pivot_wider just gets confused about duplicate rows so need for explicit code distinguishing each row 
 ```
 
-Make and run function that gets SDs across bio reps for each ASV within a sample. I'm rewrite this because
-I can't get Helen's function to work :( 
+Make and run function that gets SDs across bio reps for each ASV within a sample. I'm rewrote this because
+I couldn't get Helen's function to work with the new data format. 
+
 ```{r}
+# unnest to make taking SD across rows easier 
 bio.prop <- unnest(nested.props, cols=c(data))
 
+# apply sd to all columns 3 and over
 bio.prop$StanDev <- apply(bio.prop[3:ncol(bio.prop)], MARGIN = 1, sd, na.rm=TRUE)
 
 hist(log(bio.prop$StanDev), breaks=40)
 hist(log(SD.tech.output$StanDev), breaks=40)
 
-######## need to make two SD on the same plot i guess 
-SD.tech.output$StanDev <- 'techsd'
-bio.prop$StanDev <- 'biosd'
-
-histdf <- rbind(SD.tech.output$techsd, bio.prop$biosd)
-
-# how do we handle which site.dates to keep, it appears some have only one biological replicate remaining 
+mean(log(SD.tech.output$StanDev))
+mean(log(bio.prop$StanDev))
 
 # for now lets just see what the standard deviations are that are not NA 
 bio.prop <- bio.prop %>%
   filter(!is.na(StanDev))
 
+######## need to make two SD on the same plot 
+hist.df <- data.frame(StanDev = c(log(SD.tech.output$StanDev), log(bio.prop$StanDev)), 
+                  Division = c(rep(x='tech', times=length(SD.tech.output$StanDev)),
+                               rep(x='bottle', times=length(bio.prop$StanDev))))
+
+ggplot(hist.df, aes(x=StanDev)) + 
+    geom_histogram(data=subset(hist.df, Division == 'tech'),fill = "red", alpha = 0.4, bins=50) +
+    geom_histogram(data=subset(hist.df, Division == 'bottle'),fill = "blue", alpha = 0.4, bins=50) +
+    labs(y="count", x = "log(Standard Deviation)") +
+    geom_vline(aes(xintercept=mean(log(SD.tech.output$StanDev), color="red", size=2))) +
+    geom_vline(aes(xintercept=mean(log(bio.prop$StanDev), color="blue", size=2)))
+
+
 mean(bio.prop$StanDev)
+boxplot(log(bio.prop$StanDev))
 
-```
-
-
-Questions: 
-1) is it okay to average SDs across ASVs within a sample? 
-2) When taking the mean of the standard deviations across ASVs, should I be taking a normal mean or a lognormal mean? this applies both within the function, and taking the final mean of variation for biological and PCR replicates combined. 
-3) Also keep in mind that this is not discriminating between samples with different numbers of biological replicates.
-
-```{r isolate bio var}
-mean(SD.bio.tech.output) 
-mean(SD.tech.output$StanDev)
-```
-
-So, that's all wrong...tech variability shouldn't be higher than tech+bio variability. Need to revisit how we can compare these two sources of variability. 
-
-
-```{r}
-length(SD.bio.tech.output)
-length(SD.tech.output$StanDev)
-```
-
-Joe messing around trying to get deviation for each ASV in the un-nested table?
-
-```{r}
-
-unnested.props <- unnest(nested.props, cols=c(data))
-# write csv to data folder 
-write_csv(unnested.props, '../data/site.date.prop.csv')
-
-SD.bio.output <- SD.across.rows(unnested.props, c(3:20))
-# uh oh why is this a different value than what Helen got?
-mean(SD.bio.output$StanDev)
-
-length(SD.bio.output$StanDev)
-
-#lets look at the hists 
-hist(SD.tech.output$StanDev, breaks=120)
-hist(SD.bio.output$StanDev, breaks=120)
-
-hist(log(SD.tech.output$StanDev), breaks=120)
-hist(log(SD.bio.output$StanDev), breaks=120)
-```
-```{r}
-boxplot(log(SD.tech.output$StanDev))
-boxplot(log(SD.bio.output$StanDev))
 ```
