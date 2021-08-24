@@ -119,15 +119,17 @@ long.props <- trip.proportion.reads %>%
 
 get.PCRn <- long.props %>% 
   mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
-  separate(sample, into = c('sample', 'foo'), sep=8) %>% # cut off the day lables on the 2017 samples 
-  select(-c(bio, Miseq_run, PCR, foo)) %>%
+  #separate(sample, into = c('sample', 'foo'), sep=8) %>% # cut off the day lables on the 2017 samples 
+  select(-c(bio, Miseq_run, PCR)) %>%
   unite(sample, bottle, col = biorep, sep = ".", remove=FALSE) %>% 
   group_by(biorep, Hash) %>%
-  summarise(meanprop=sum(Proportion)/3)
-
+  #group_size() 
+  summarise(meanprop=sum(Proportion)/3) #take the mean can this be done with mean()
+  
+    
 nesttest <- nest(get.PCRn, data=!biorep)
 
-# do all the proportion add up to 1? they do! 
+# do all the proportion add up to 1? they don't whats going on! 
 for (i in nesttest$data){
   print(sum(i$meanprop))
 }
@@ -190,3 +192,7 @@ mean(bio.prop$StanDev)
 boxplot(log(bio.prop$StanDev))
 
 ```
+```{r}
+
+```
+
