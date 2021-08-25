@@ -119,20 +119,32 @@ long.props <- trip.proportion.reads %>%
 
 get.PCRn <- long.props %>% 
   mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
-  #separate(sample, into = c('sample', 'foo'), sep=8) %>% # cut off the day lables on the 2017 samples 
+  # separate(sample, into = c('sample', 'foo'), sep=8) %>% # cut off the day lables on the 2017 samples 
   select(-c(bio, Miseq_run, PCR)) %>%
   unite(sample, bottle, col = biorep, sep = ".", remove=FALSE) %>% 
   group_by(biorep, Hash) %>%
-  #group_size() 
-  summarise(meanprop=sum(Proportion)/3) #take the mean can this be done with mean()
-  
-    
+  # add_tally()
+  summarise(meanprop=sum(Proportion/3))
+
+# bio.means <- get.PCRn %>%
+#   group_by(biorep, Hash) %>%
+#   summarise(meanprop=sum(Proportion)/n)
+
 nesttest <- nest(get.PCRn, data=!biorep)
 
-# do all the proportion add up to 1? they don't whats going on! 
+# do all the proportion add up to 1? they do maybe? wierd behavior for testvec
+j <- 1
+testvec <- c(length=length(nesttest$data))
+
 for (i in nesttest$data){
   print(sum(i$meanprop))
+  testvec[j] <- sum(i$meanprop)
+  j <- j+1
 }
+
+testdf <- as.data.frame(testvec)
+print(unique(testvec))
+##############################################################################
 
 get.PCRn <-get.PCRn %>%
   separate(col=biorep, into=c('sample','bio'), sep='[.]', remove=TRUE)
@@ -181,11 +193,11 @@ hist.df <- data.frame(StanDev = c(log(SD.tech.output$StanDev), log(bio.prop$Stan
                                rep(x='bottle', times=length(bio.prop$StanDev))))
 
 ggplot(hist.df, aes(x=StanDev)) + 
-    geom_histogram(data=subset(hist.df, Division == 'tech'),fill = "red", alpha = 0.4, bins=50) +
-    geom_histogram(data=subset(hist.df, Division == 'bottle'),fill = "blue", alpha = 0.4, bins=50) +
+    geom_histogram(data=subset(hist.df, Division == 'tech'),fill = "red", alpha = 0.4, bins=60) +
+    geom_histogram(data=subset(hist.df, Division == 'bottle'),fill = "blue", alpha = 0.4, bins=60) +
     labs(y="count", x = "log(Standard Deviation)") +
-    geom_vline(aes(xintercept=mean(log(SD.tech.output$StanDev), color="red", size=2))) +
-    geom_vline(aes(xintercept=mean(log(bio.prop$StanDev), color="blue", size=2)))
+    geom_vline(aes(xintercept=mean(log(SD.tech.output$StanDev))), color="red", size=2) +
+    geom_vline(aes(xintercept=mean(log(bio.prop$StanDev))), color="blue", size=2)
 
 
 mean(bio.prop$StanDev)
