@@ -38,47 +38,17 @@ SD.tech.output <- SD.across.rows(trip.proportion.reads, c(4:6))
 mean(SD.tech.output$StanDev)
 ```
 
-Now, I'll do the same but with different hash rarity cutoffs. This involves:
-  - ranking the hashes by average proportion across PCR reps
-  - chopping some hashes
-  - calculating the standard deviation of each remaining hash across PCR replicates
-  - converting those standard deviation to log (because they will *most likely* be lognormally distributed) 
-  - keeping track of the lognormal mean, and the distribution of SDs for each cutoff to check for lognormality
+In an attempt to trouble shoot getting means across replicates lets see if there are double-hashes.
+Shouldn't table(hash.rep.taly$n) only be "1s"? 
 
-Some things to fix with the function below:
-  - make the function usable for duplicates as well
+```{r}
+hash.rep.tally <- trip.proportion.reads %>%
+  unite(bio, Hash, col=ID, sep='.', remove=TRUE) %>%
+  group_by(ID) %>%
+  add_tally()
 
-```{r standard deviation of each Hash with cutoff}
-# SDcutoffs <- function(df, cutoffs){
-#   
-#   lognormal.means <- data.frame(cutoffs = cutoffs, logmeans = rep(NA, length(cutoffs)), exclpercent =rep(NA, length(cutoffs)))
-# 
-#   SD.dists <- matrix(NA, ncol=length(cutoffs), nrow=length(df$Hash),length(cutoffs)) 
-#   
-#      meanProp.acrossPCR <- df %>% 
-#        group_by(Hash) %>% 
-#        summarise(meanProp.PCR = mean(c(PCR1_prop, PCR2_prop,PCR3_prop))) %>% 
-#        arrange(desc(meanProp.PCR)) # to get rarity order
-#     
-#     for(i in 1:length(cutoffs)){
-#       sub.tib <- meanProp.acrossPCR %>% 
-#         filter(meanProp.PCR > cutoffs[i]) # chop hashes below proportion cutoff
-#     
-#       lognormal.means[i,3] <- 1 - (length(sub.tib$Hash)/length(meanProp.acrossPCR$Hash)) # column 3 is % of UNIQUE hashes excluded
-#       
-#       PCR.tib <- df %>% 
-#         filter(Hash %in% sub.tib$Hash) %>% 
-#         select(!c(Hash, bio,Miseq_run)) # all PCR props corresponding to remaining hashes
-#       
-#      PCR.SD.tib <- SD.across.rows(PCR.tib, c(1:3))
-#      SD.dists[1:length(PCR.SD.tib$StanDev),i] <- log(PCR.SD.tib$StanDev)
-#      
-#      lognormal.means[i,2]  <- exp(mean(log(PCR.SD.tib$StanDev)) + (((sd(log(PCR.SD.tib$StanDev))^2)/2)))
-#   
-#    print(i) # progress bar
-#   }
-#      return(list(lognormal.means, SD.dists))
-# }
+table(hash.rep.tally$n)
+
 ```
 
 ```{r get output, check for lognormality}
