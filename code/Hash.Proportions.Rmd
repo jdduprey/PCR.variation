@@ -1,16 +1,17 @@
 ---
-title: "Instead of eDNA index values, calculate Hash proportions (& eDNA index) within samples"
+title: "Calculate Hash proportions within samples (& triplicate eDNA index)"
 author: "Joe Duprey, Helen Casendino, Ramon Gallego"
-date: "8/13/2021"
+date: "8/25/2021"
 output: html_document
 ---
 
 # Overview: This code creates 3 csvs: 
-  1) PCR.proportions.csv (line 66). This code calculates the proportions for each Hash within a PCR triplicate without removing PCR replicates with low reads
-  2) PCR.proportions.clean.csv (line 121). This code calculates the proportions for each Hash within a PCR triplicate AFTER removing PCR replicates with low reads
-  3) PCR.index.clean.csv (line 189): This code calculates the eDNA index for each Hash within a PCR triplicate.
-  4) PCR.duplic.proportions.csv (line 260). This code calculates the proportions for each Hash within a PCR duplicate. These duplicate include true duplicates AND samples that had one PCR replicate removed in the earlier low read quality control step. 
-
+  1) PCR.proportions.csv. This code calculates the proportions for each Hash within a PCR triplicate without removing PCR replicates with low reads
+  2) PCR.proportions.clean.csv. This code calculates the proportions for each Hash within a PCR triplicate AFTER removing PCR replicates with low reads
+  3) PCR.duplic.proportions.csv. This code calculates the proportions for each Hash within a PCR duplicate. These duplicate include true duplicates AND samples that had one PCR replicate removed in the earlier low read quality control step. 
+  4) PCR.index.clean.csv. This code calculates the eDNA index for each Hash within a PCR triplicate.
+  
+  **NOTE: For PCR.proportions.clean.csv and PCR.duplic.proportions.csv, Hash proportions are averaged across duplicate MiSeq runs, where the same bottles and corresponding Hashes were run through two Miseq runs (I believe Miseq runs 5 & 6 have duplicates)**
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -41,7 +42,6 @@ by.tech.table %>%
 ```
 
 
-
 ## Triplicate proportions with low reads included
 
 For now, only use samples with 3 PCR replicates. 
@@ -53,7 +53,7 @@ three_reps <- by.tech.table %>%
   filter(nrep == 3)
 ```
 
-Now, we want to get the proportion of nReads for each hash (nReads of hash/total nReads in the bio sample for each tech rep)
+Now, we want to get the proportion of nReads for each hash (nReads of hash/total nReads in the bio sample for each tech rep). 
 
 ```{r Getting Hash Proportions}
 PCR.proportions <- by.tech.table %>%
@@ -63,6 +63,9 @@ PCR.proportions <- by.tech.table %>%
   select(Miseq_run, bio, tech, Hash, PropRead) %>%
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
+
+
+
 ```
 
 Save the new dataframe. 
@@ -73,10 +76,9 @@ write_csv(PCR.proportions, '../data/PCR.proportions.csv')
 
 
 
-
 ## Triplicate proportions with low reads removed
 
-Let's also make a data frame that excludes very low reads within PCR triplicates, to use in helen.rare.sp.Rmd. We'll adapt our code from Step 2 of Moncho's (Denoising.all.runs.Rmd) in the OA paper, where nReads are fit to a normal distribution and those with low reads outside of the 95% CI are removed. 
+Data frame that excludes very low reads within PCR triplicates. We'll adapt our code from Step 2 of Moncho's (Denoising.all.runs.Rmd) in the OA paper, where nReads are fit to a normal distribution and those with low reads outside of the 95% CI are removed. 
 
 ```{r Fit nReads to normal dist}
 
@@ -124,7 +126,7 @@ two_reps_full <- two_reps %>% rows_insert(tibble(bio = outliers$bio, nrep = 2))
 ```
 
 Now remove the new duplicate samples from the triplicate set.
-We'll also make the triplicate proportion table here. 
+We'll make the triplicate proportion table here. We also don't want duplicates across Miseq runs (the same bio.Hash row for Miseq runs 5 & 6), so we will average proportion across Miseq runs. 
 
 ```{r removing duplicates from triplicate & making triplicate prop table}
 
@@ -136,8 +138,10 @@ PCR.proportions.clean <- true.triplicate.data %>%
   mutate(PropRead = nReads/sum(nReads)) %>%
   select(Miseq_run, bio, tech, Hash, PropRead) %>%
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
-  dplyr::rename(c('PCR1_prop' = '1', 'PCR2_prop' = '2', 'PCR3_prop' = '3'))
+  dplyr::rename(c('PCR1_prop' = '1', 'PCR2_prop' = '2', 'PCR3_prop' = '3'))%>%    group_by(bio, Hash)%>% 
+  summarise_at(c("PCR1_prop", "PCR2_prop", "PCR3_prop"), mean)
 
+write_csv(PCR.proportions.clean, '../data/PCR.proportions.clean.csv')
 # something like this to get hash proportions between bio replicates 
 # PCR.by.bio.clean <- triplicate.data.clean %>%
 #   group_by(Miseq_run, bio, tech) %>%
@@ -147,50 +151,9 @@ PCR.proportions.clean <- true.triplicate.data %>%
   # rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
 #write_csv(PCR.by.bio.clean, '../data/PCR.proportions.clean.csv')
-write_csv(PCR.proportions.clean, '../data/PCR.proportions.clean.csv')
+
 ```
 
-
-## Triplicate eDNA INDICES with low reads removed
-
-I also want to create a csv with eDNA index values instead of proportions. 
-
-```{r Sourcing eDNA index func}
-# source("/Users/helencasendino/Desktop/PCR.variation/code/eDNA indexing/helen.eDNA_index.R") # modified index function (need to fix source path)
-calc_eDNA_index <- function(df, PCRcols) { 
-  
-  for(i in 1:length(PCRcols)){
-    
-    nRead.col <- colnames(df)[PCRcols[i]] # col name of PCR column
-    
-    df[,nRead.col] <- df %>%
-      group_by(bio) %>% # "convert read counts to proportion with biological sample" 
-      mutate(totalReads = sum(.data[[nRead.col]]),
-             propReads = .data[[nRead.col]]/totalReads) %>% 
-      
-      group_by(Hash) %>% # "scale the resulting proportion to the largest observed proportion across samples"
-      mutate(index = propReads/(max(propReads)), .keep = "none") %>% ungroup() %>% select(-Hash)
-    
-    NArows <- which(is.na(df[,nRead.col]) == T) 
-    df[NArows,nRead.col] <- 0
-  }
-  colnames(df)[PCRcols] <- c("PCR1_index", "PCR2_index", "PCR3_index") # rename columns to "index"
-  return(df)
-} 
-```
-
-```{r run function on trip data}
-# Make trip data wide (1 column per PCR)
-wide <- true.triplicate.data %>%  
-  select(bio, tech, Hash, nReads) %>%
-  pivot_wider(names_from=tech, values_from=nReads, values_fill=0)
-
-wide.named <- wide %>%
-  rename('PCR1_reads'='1', 'PCR2_reads'='2', 'PCR3_reads'='3')
-
-PCR.index.clean <- calc_eDNA_index(wide.named, c(3:5))
-write_csv(PCR.index.clean, '../data/PCR.index.clean.csv')
-```
 
 
 ## Duplicate proportions 
@@ -206,7 +169,7 @@ duplicate.data<- by.tech.table %>%
 duplicate.data.clean <- duplicate.data %>% filter(!sample %in% outliers$sample)
 ```
 
-Now we're gonna check, just to make sure, that no reads from the true duplicates are really low. This code chunk is the same as code chunks in lines 66 and 84 above.
+Now we're gonna check, just to make sure, that no reads from the true duplicates are really low. 
 
 ```{r checking to make sure no dups have really low reads}
 #all.nReads.sums <- duplicate.data.clean %>%  group_by(sample) %>%
@@ -258,8 +221,54 @@ PCR.duplic.proportions <- standard.props %>%
   mutate(PropRead = nReads/sum(nReads)) %>%
   select(Miseq_run, bio, tech, Hash, PropRead) %>% 
   pivot_wider(names_from=tech, values_from=PropRead, values_fill = 0) %>% 
-  dplyr::rename(c("PCR1_prop" = "1", "PCR2_prop" = "2"))
+  dplyr::rename(c("PCR1_prop" = "1", "PCR2_prop" = "2")) %>% group_by(bio, Hash)%>%  summarise_at(c("PCR1_prop", "PCR2_prop"), mean)
 
 write_csv(PCR.duplic.proportions, '../data/PCR.duplic.proportions.csv')
-
 ```
+
+
+
+
+
+## Triplicate eDNA INDICES with low reads removed
+
+I also want to create a csv with eDNA index values instead of proportions. 
+
+```{r Sourcing eDNA index func}
+# source("/Users/helencasendino/Desktop/PCR.variation/code/eDNA indexing/helen.eDNA_index.R") # modified index function (need to fix source path)
+calc_eDNA_index <- function(df, PCRcols) { 
+  
+  for(i in 1:length(PCRcols)){
+    
+    nRead.col <- colnames(df)[PCRcols[i]] # col name of PCR column
+    
+    df[,nRead.col] <- df %>%
+      group_by(bio) %>% # "convert read counts to proportion with biological sample" 
+      mutate(totalReads = sum(.data[[nRead.col]]),
+             propReads = .data[[nRead.col]]/totalReads) %>% 
+      
+      group_by(Hash) %>% # "scale the resulting proportion to the largest observed proportion across samples"
+      mutate(index = propReads/(max(propReads)), .keep = "none") %>% ungroup() %>% select(-Hash)
+    
+    NArows <- which(is.na(df[,nRead.col]) == T) 
+    df[NArows,nRead.col] <- 0
+  }
+  colnames(df)[PCRcols] <- c("PCR1_index", "PCR2_index", "PCR3_index") # rename columns to "index"
+  return(df)
+} 
+```
+
+```{r run function on trip data}
+# Make trip data wide (1 column per PCR)
+wide <- true.triplicate.data %>%  
+  select(bio, tech, Hash, nReads) %>%
+  pivot_wider(names_from=tech, values_from=nReads, values_fill=0)
+
+wide.named <- wide %>%
+  rename('PCR1_reads'='1', 'PCR2_reads'='2', 'PCR3_reads'='3')
+
+PCR.index.clean <- calc_eDNA_index(wide.named, c(3:5))
+write_csv(PCR.index.clean, '../data/PCR.index.clean.csv')
+```
+
+#####################################################################################
