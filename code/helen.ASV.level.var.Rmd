@@ -148,19 +148,22 @@ Make and run function that gets SDs across bio.PCRs for each ASV within a sample
 
 SD.by.BioPCR <- function(list, nSamples){
   
-  meanSD <- rep(NA, nSamples)
+  SDs <- c("start")
   
   for(i in 1:nSamples){
     SD.output <- SD.across.rows(list[[i]], c(2:dim(list[[i]])[2]))#2nd argument = all columns after hash column 
-    meanSD[i] <- mean(SD.output$StanDev) 
+     SDs[(length(SDs) + 1):(length(SD.output$StanDev) + length(SDs))] <- SD.output$StanDev
      print(i)
   }
-  
-  return(meanSD)
+  return(SDs)
 }
 
 SD.bio.tech.output<- SD.by.BioPCR(nested.props$data, length(nested.props$sample))
-hist(SD.bio.tech.output, breaks=20)
+
+# clean up output
+SD.bio.tech.output <- as.numeric(SD.bio.tech.output[-1])
+
+hist(SD.bio.tech.output, col = "blue", main = "Distribution of SDs with No Exclusions", xlab = "Standard Deviation")
 ```
 
 Questions: 

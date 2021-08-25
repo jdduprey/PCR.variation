@@ -12,10 +12,13 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(vegan)
 library(gridExtra)
+library(stringi)
 ```
 
 
 For each biological replicate, this code will loop through flat hash proportion cutoffs, and look at how the mean distance to the centroid (between 3 pairwise comparisons: PCR 1&2, 2&3, 1&3) changes by removing rare hashes (below a certain proportion threshold). We will also be keeping track of what percentage of Hashes are being removed in each cutoff. 
+
+This code also calculates distance to the centroid between Bray Curtis Distances of all bio.PCR combinations (A.1, A.2, B.3, C.2, etc.) for each sampling event.
 
 ## Step 1: Read in the data. 
 
@@ -212,3 +215,75 @@ dup.plot.C
 # why are there so many hashes excluded when cutoff is 0? need to check how violin plot is grouping
 
 ```
+
+
+## Bio-PCR Centroid Distances
+Extra code calculating same thing as above (distance to centroids), just no exclusions (no rarity cutoffs) and over loops over sampling events. Calculates distance to centroid of bray curtis dissimilarities between bioPCR communities, not just PCR communities. 
+
+```{r bioPCR function}
+# list = list of data frames corresponding to each sampling event. Within each df, columns correspond to bioPCR combos (A1, B3, C2 etc) and rows correspond to each Hashes
+# SampleVector is vector of sampling events (PO20170311, etc)
+
+BIOPCRcentroids <- function(list, SampleVector){
+  
+  dists <- rep(NA, length(SampleVector))
+  
+  for(j in 1:length(dists)){
+    df <- list[[j]]
+    sub.tib <- df %>% select(!c(Hash))
+    nBIOPCR <- length(colnames(sub.tib))
+    flip.tib <- t(sub.tib)
+    
+    dis <- vegdist(flip.tib)
+    grouping <- factor(rep(1,nBIOPCR))
+    centroid<- betadisper(dis, group = grouping)
+    dists[j] <- mean(centroid$distances)
+    print(j)
+  }
+  return(dists)
+}
+```
+
+We need to nest our triplicate data by sampling event. This is the code chunk from helen.ASV.level.var
+
+```{r Widen & Nest Data}
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,Miseq_run,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+    
+    print(i)
+}
+```
+
+Run function:
+
+```{r bioPCR output}
+bioPCRoutput <- BIOPCRcentroids(nested.props$data, nested.props$sample)
+```
+
+We can plot both the PCR output (the first row of trip.output, no exclusions) and bioPCR output in histograms
+
+```{r plotting}
+par(mfrow=c(1,2))
+hist(trip.output$centroid.dists[1,],main="PCR",xlab = "Distance to Centroid",col = viridis ::magma(3,0.7,0.9))
+
+hist(bioPCRoutput,main="Bottle + PCR",xlab = "Distance to Centroid",col = viridis ::magma(3,0.7,0.9))
+```
+
+
