@@ -1,0 +1,79 @@
+---
+title: "ASV.level.date.site"
+author: "Helen Casendino, Joe Duprey"
+date: "8/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(stringi)
+library(stringr)
+```
+
+## TODO
+
+try to get ASV level variance at a month between dates and at a month between sites 
+
+
+```{r}
+long.standard.prop <- read.csv('../data/OA.long.standard.prop.csv')
+```
+
+
+```{r}
+
+#get rid of unnecessary day marker for 2017 dates, sort into site and date 
+long.standard.prop <- long.standard.prop %>%
+  separate(col=sample, into=c("sample", "foo"), sep = 8) %>%
+  select(-foo) %>%
+  separate(col=sample, into=c("site", "date"), sep = 2)
+
+nested.props <- long.standard.prop %>%
+  unite(bottle, PCRn, date, col = "bio.PCR.date", sep = ".") %>%
+  nest(data = c(bio.PCR.date, Hash, Proportion))
+```
+
+```{r}
+# for(i in 1:length(nested.props$site)) {
+#   
+#   nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+#     group_by(bio.PCR.date, Hash) %>% 
+#     summarise(Proportion = mean(Proportion)) %>%  
+#     pivot_wider(names_from = bio.PCR.date, values_from= Proportion, values_fill = 0) 
+#     
+#     print(i)
+# }
+```
+
+```{r}
+# SD.across.rows <- function(df, col.numbers){ # here, col.numbers corresponds to 3 PCR columns
+#   df$StanDev <- NA
+#   values.only <- df[,col.numbers]
+#   df$StanDev <- apply(values.only, MARGIN = 1, sd, na.rm=TRUE) #joe added na.rm=TRUE
+# 
+#   return(df)
+# }
+# 
+# SD.by.site <- function(list, nSamples){
+#   
+#   SDs <- c("start")
+#   
+#   for(i in 1:nSamples){
+#     SD.output <- SD.across.rows(list[[i]], c(2:dim(list[[i]])[2])) #2nd argument = all columns after hash column 
+#      SDs[(length(SDs) + 1):(length(SD.output$StanDev) + length(SDs))] <- SD.output$StanDev
+#      print(i)
+#   }
+#   return(SDs)
+# }
+# 
+# SD.site.output<- SD.by.site(nested.props$data, length(nested.props$site))
+
+# this is producing a bizzare output, maybe rewrite standev functions? 
+test <- as.data.frame(SD.site.output)
+
+
+```
+
