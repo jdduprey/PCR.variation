@@ -1,9 +1,14 @@
 ---
 title: "helen.ASV.level.var"
-author: "Helen Casendino"
-date: "8/05/2021"
+author: "Helen Casendino, Joe Duprey"
+date: "8/25/2021"
 output: html_document
 ---
+
+Part A : PCR ASV Variation
+Part B : PCR & Bottle ASV Variation
+Part C : Bottle ASV Variation (averaged across PCR replicates)
+Part D : Site & Date Variation (in progress)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -34,7 +39,7 @@ SD.across.rows <- function(df, col.numbers){ # here, col.numbers corresponds to 
   return(df)
 }
 
-SD.tech.output <- SD.across.rows(trip.proportion.reads, c(4:6))
+SD.tech.output <- SD.across.rows(trip.proportion.reads, c(3:5))
 ```
 
 Now, I'll do the same but with different hash rarity cutoffs. This involves:
@@ -67,7 +72,7 @@ SDcutoffs <- function(df, cutoffs){
       
       PCR.tib <- df %>% 
         filter(Hash %in% sub.tib$Hash) %>% 
-        select(!c(Hash, bio,Miseq_run)) # all PCR props corresponding to remaining hashes
+        select(!c(Hash, bio)) # all PCR props corresponding to remaining hashes
       
      PCR.SD.tib <- SD.across.rows(PCR.tib, c(1:3))
      SD.dists[1:length(PCR.SD.tib$StanDev),i] <- log(PCR.SD.tib$StanDev)
@@ -104,7 +109,7 @@ grid.arrange(SDvsProp.plot,ChoppedvsProp.plot, nrow=1)
 # Part B. ASV Variation within Biological Replicates (also only triplicates)
 
 ## Description:
-  - Main goal of code below is to get distribution & mean of ASV variation within Biological and PCR replicates combined, and subtract PCR variation to isolate bio variation
+  - Main goal of code below is to get distribution & mean of ASV variation within Biological and PCR replicates combined
   - The code below creates a nested df where each table belongs to a certain sample (eg, PO20170311)
   - Each table has columns corresponding to every bottle/PCR combination (A.1, B.1, C.2, C.3, etc) and rows corresponding to each ASV found. Values = proportions within a specific bottle
   -Take the standard deviations of each ASV's proportions (across different bio.PCRs)
@@ -118,7 +123,7 @@ long.props <- trip.proportion.reads %>%
 
 get.PCRn <- long.props %>% 
   mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
-  select(-c(bio,Miseq_run,PCR))
+  select(-c(bio,PCR))
 
 write_csv(get.PCRn, '../data/OA.long.standard.prop.csv')
 
@@ -164,27 +169,6 @@ SD.bio.tech.output<- SD.by.BioPCR(nested.props$data, length(nested.props$sample)
 
 # clean up output
 SD.bio.tech.output <- as.numeric(SD.bio.tech.output[-1])
-
-hist(SD.bio.tech.output, col = "blue", main = "Distribution of SDs with No Exclusions", xlab = "Standard Deviation")
-hist(log(SD.bio.tech.output), col = "blue", main = "Distribution of log(SDs) with No Exclusions", xlab = "Standard Deviation")
-```
-
-Questions: 
-1) is it okay to average SDs across ASVs within a sample? 
-2) When taking the mean of the standard deviations across ASVs, should I be taking a normal mean or a lognormal mean? this applies both within the function, and taking the final mean of variation for biological and PCR replicates combined. 
-3) Also keep in mind that this is not discriminating between samples with different numbers of biological replicates.
-
-```{r isolate bio var}
-mean(SD.bio.tech.output) 
-mean(SD.tech.output$StanDev)
-```
-
-So, that's all wrong...tech variability shouldn't be higher than tech+bio variability. Need to revisit how we can compare these two sources of variability. 
-
-
-```{r}
-length(SD.bio.tech.output)
-length(SD.tech.output$StanDev)
 ```
 
 Joe messing around trying to get deviation for each ASV in the un-nested table?
@@ -214,3 +198,57 @@ boxplot(log(SD.bio.output$StanDev))
 ```
 
 
+# Part C : Bottle ASV Variation (Proportions averaged across PCR replicates)
+
+I just stole this from Joe's Joe.mean.ASV.level.Rmd, with a few minor additions. 1st code block gets mean proportion for each hash within each biological replicate.
+
+```{r Data Organization: dataset specific}
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio, PCR)) %>%
+  unite(sample, bottle, col = biorep, sep = ".", remove=FALSE) %>% 
+  group_by(biorep, Hash) %>%
+  summarise(meanprop=mean(Proportion))
+```
+
+Side note: Mean proportions within 1 bottle (ex, CP201706.A) shouldn't really add up to 1, because they comprise the means across PCRs (so not exact). But they should be close. Quick test:
+
+```{r Proportion sum test}
+propsums <- get.PCRn %>% group_by(biorep) %>% summarise(sum = sum(meanprop) )
+hist(propsums$sum)
+length(which(propsums$sum == 1))/length(propsums$sum) # 78% of proportions sum to 1
+```
+
+1) Create separate columns for sample ID and bottle, 2) nest data, 3) convert each sample's df to have columns for each **biological replicate**
+
+```{r}
+#1)
+get.PCRn <-get.PCRn %>%
+  separate(col=biorep, into=c('sample','bio'), sep='[.]', remove=TRUE)
+
+#2)
+nested.props <- get.PCRn %>% 
+  nest(data = c(bio, Hash, meanprop))
+
+#3)
+for(i in 1:length(nested.props$sample)) {
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    pivot_wider(names_from = bio, values_from=meanprop, values_fill = 0) 
+    print(i)
+}
+```
+
+SD.by.BioPCR is the function from earlier (somewhat of a misnomer here, because we're only looking at sd of bottle replicates), which we will use to calculate row-wise standard deviations in a nested dataframe.
+
+```{r getting bottle sds}
+SD.bio.output<- SD.by.BioPCR(nested.props$data, length(nested.props$sample))
+SD.bio.output <- as.numeric(SD.bio.output[-1])
+
+# check output 
+length(which(is.na(SD.bio.output) ==T)) # 783 observations
+```
