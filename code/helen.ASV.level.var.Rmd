@@ -8,6 +8,7 @@ output: html_document
 Part A : PCR ASV Variation
 Part B : PCR & Bottle ASV Variation
 Part C : Bottle ASV Variation (averaged across PCR replicates)
+Part D : Site & Date Variation (in progress)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
