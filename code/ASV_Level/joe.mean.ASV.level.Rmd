@@ -22,7 +22,7 @@ library(stringi)
   2) Then, I'll loop through different proportion cutoffs (averaging proportions across PCR reps for each hash), each time calculating the LOGNORMAL mean of all of the standard deviations (across bio reps, etc.)
 
 ```{r read in clean triplicate data}
-trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 ```
 
 ```{r standard deviation of each Hash}
@@ -90,7 +90,7 @@ long.props <- trip.proportion.reads %>%
 get.PCRn <- long.props %>% 
   mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
   # separate(sample, into = c('sample', 'foo'), sep=8) %>% # cut off the day lables on the 2017 samples 
-  select(-c(bio, Miseq_run, PCR)) %>%
+  select(-c(bio, PCR)) %>%
   unite(sample, bottle, col = biorep, sep = ".", remove=FALSE) %>% 
   group_by(biorep, Hash) %>%
   # add_tally()
@@ -134,7 +134,6 @@ for(i in 1:length(nested.props$sample)) {
     
     print(i)
 }
-# not actually averaging anything, pivot_wider just gets confused about duplicate rows so need for explicit code distinguishing each row 
 ```
 
 Make and run function that gets SDs across bio reps for each ASV within a sample. I'm rewrote this because
@@ -171,6 +170,7 @@ ggplot(hist.df, aes(x=StanDev)) +
 
 
 mean(bio.prop$StanDev)
+mean(log(bio.prop$StanDev))
 boxplot(log(bio.prop$StanDev))
 
 ```
