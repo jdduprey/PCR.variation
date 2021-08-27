@@ -59,9 +59,9 @@ Now, we want to get the proportion of nReads for each hash (nReads of hash/total
 ```{r Getting Hash Proportions}
 PCR.proportions <- by.tech.table %>%
   filter(bio %in% three_reps$bio) %>% # only take bio reps with three PCR reps
-  group_by(Miseq_run, bio, tech) %>% 
+  group_by(bio, tech) %>% # removed Miseq_run from group_by() i think this will solve our duplicate hash problem -joe   
   mutate(PropRead = nReads/sum(nReads)) %>%
-  select(Miseq_run, bio, tech, Hash, PropRead) %>%
+  select(bio, tech, Hash, PropRead) %>%
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
@@ -133,9 +133,9 @@ true.triplicate.data<- by.tech.table %>%
   filter(!bio %in% two_reps_full$bio)
 
 PCR.proportions.clean <- true.triplicate.data %>%
-  group_by(Miseq_run, bio, tech) %>%
+  group_by(bio, tech) %>% # removed Miseq_run 8/27 see above - joe 
   mutate(PropRead = nReads/sum(nReads)) %>%
-  select(Miseq_run, bio, tech, Hash, PropRead) %>%
+  select(bio, tech, Hash, PropRead) %>%
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
   dplyr::rename(c('PCR1_prop' = '1', 'PCR2_prop' = '2', 'PCR3_prop' = '3'))%>%    group_by(bio, Hash)%>% 
   summarise_at(c("PCR1_prop", "PCR2_prop", "PCR3_prop"), mean)
@@ -216,18 +216,14 @@ standard.props <- standard_PCRnums(duplicate.data.clean, unique(duplicate.data.c
 
 # calculate duplicate proportions
 PCR.duplic.proportions <- standard.props %>%
-  group_by(Miseq_run, bio, tech) %>%
+  group_by(bio, tech) %>% # removed Miseq_run 8/27, see above 
   mutate(PropRead = nReads/sum(nReads)) %>%
-  select(Miseq_run, bio, tech, Hash, PropRead) %>% 
+  select(bio, tech, Hash, PropRead) %>% 
   pivot_wider(names_from=tech, values_from=PropRead, values_fill = 0) %>% 
   dplyr::rename(c("PCR1_prop" = "1", "PCR2_prop" = "2")) %>% group_by(bio, Hash)%>%  summarise_at(c("PCR1_prop", "PCR2_prop"), mean)
 
 write_csv(PCR.duplic.proportions, '../data/PCR.duplic.proportions.csv')
 ```
-
-
-
-
 
 ## Triplicate eDNA INDICES with low reads removed
 
