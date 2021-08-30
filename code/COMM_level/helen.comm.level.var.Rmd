@@ -26,9 +26,9 @@ This code also calculates distance to the centroid between Bray Curtis Distances
  - dup.proportion.reads = the proportions of each hash by PCR replicate (ONLY duplicate PCR samples and triplicate PCR samples that had one replicate chopped bc of low total reads)
 
 ```{r load in data}
-trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 
-dup.proportion.reads <- read.csv('../data/PCR.duplic.proportions.csv')
+dup.proportion.reads <- read.csv('../../data/PCR.duplic.proportions.csv')
 ```
 
 
