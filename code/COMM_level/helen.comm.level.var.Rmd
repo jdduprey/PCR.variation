@@ -20,7 +20,7 @@ library(stringi)
  - trip.proportion.reads = the proportions of each hash by PCR replicate (ONLY triplicate PCR samples) and biological samples with really 1 low read PCR replicate are removed
 
 ```{r load in data}
-trip.proportion.reads <- read.csv('/data/PCR.proportions.clean.csv')
+trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
 ```
 
 ## Step 2: PCR Variation: Create and run function to get mean distance to centroid for 3 different PCR pairwise comparisons, by biological replicate
@@ -114,4 +114,39 @@ hist(bottle.output, col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation"
 # text(0.4, 12,"mean = 0.229")
 ```
 
+#########
+I ALSO WANT TO SEE HOW ANSWER TO BOTTLE VARIATION CHANGES WITHOUT AVERAGING ACROSS PCRS
+###############
+
+```{r data wrangling, not taking PCR mean}
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  
+  print(i)
+}
+```
+
+```{r run BOTTLEcentroids function again}
+bottle.output.bioPCR <- BOTTLEcentroids(nested.props$data, nested.props$sample)
+hist(bottle.output.bioPCR, col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation (no PCR averaging)", xlab = "Distance to Centroid (BC Pairwise Distances)")
+mean(bottle.output.bioPCR) # mean is still 0.299...so higher than the earlier bottle var estimate
+#text(0.5, 12,"mean = 0.299")
+```
 
