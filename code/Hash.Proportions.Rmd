@@ -227,9 +227,6 @@ write_csv(PCR.duplic.proportions, '../data/PCR.duplic.proportions.csv')
 ```
 
 
-
-
-
 ## Triplicate eDNA INDICES with low reads removed
 
 I also want to create a csv with eDNA index values instead of proportions. 
