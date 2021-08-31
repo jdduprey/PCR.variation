@@ -93,14 +93,14 @@ BOTTLEcentroids <- function(list, SampleVector){
   
   centroid.dists <- rep(NA, length(SampleVector))
   
-  for(j in 1:length(centroid.dists)){
+  for(j in 1:length(SampleVector)){
     df <- list[[j]]
     sub.tib <- df %>% select(!c(Hash))
     nBIOPCR <- length(colnames(sub.tib))
     flip.tib <- t(sub.tib)
     
     dis <- vegdist(flip.tib)
-    grouping <- factor(rep(1,nBIOPCR))
+    grouping <- factor(rep(1,nBIOPCR), labels=SampleVector[j])
     centroid<- betadisper(dis, group = grouping)
     centroid.dists[j] <- mean(centroid$distances)
     print(j)
