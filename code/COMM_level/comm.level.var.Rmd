@@ -20,7 +20,9 @@ library(stringi)
  - trip.proportion.reads = the proportions of each hash by PCR replicate (ONLY triplicate PCR samples) and biological samples with really 1 low read PCR replicate are removed
 
 ```{r load in data}
-trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
+
+dup.proportion.reads <- read.csv('../../data/PCR.duplic.proportions.csv')
 ```
 
 ## Step 2: PCR Variation: Create and run function to get mean distance to centroid for 3 different PCR pairwise comparisons, by biological replicate
