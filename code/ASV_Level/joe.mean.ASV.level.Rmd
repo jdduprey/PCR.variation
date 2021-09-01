@@ -94,7 +94,7 @@ get.PCRn <- long.props %>%
   unite(sample, bottle, col = biorep, sep = ".", remove=FALSE) %>% 
   group_by(biorep, Hash) %>%
   # add_tally()
-  summarise(meanprop=sum(Proportion/3))
+  summarise(meanprop=(sum(Proportion))/3)
 
 # bio.means <- get.PCRn %>%
 #   group_by(biorep, Hash) %>%
