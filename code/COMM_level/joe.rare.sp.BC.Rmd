@@ -16,7 +16,7 @@ library(reshape)
 
 
 ```{r load data}
-full.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
+full.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 ```
 
 ```{r}
@@ -48,7 +48,7 @@ bray_by_sample <- function(df, bioVector, indexCols){
     return(bray.mat)
 }
 
-bray.mat.test <- bray_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
+bray.mat.test <- bray_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(3:5))
 
 ```
 
@@ -94,10 +94,10 @@ filter_proprank <- function(df, proportion, use_rank=TRUE) {
   }
   # flatten the df to feed into bray_by_sample() function 
   result.wide <- result.long %>%
-    select(Miseq_run, bio, tech, Hash, PropRead) %>%
+    select(bio, tech, Hash, PropRead) %>%
     pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) 
   
-  BC.by.bio <- as.data.frame(bray_by_sample(result.wide, unique(result.wide$bio), c(4:6)))
+  BC.by.bio <- as.data.frame(bray_by_sample(result.wide, unique(result.wide$bio), c(3:5)))
   ####
   BC.by.bio$cutoff <- proportion # show which prop cutoff it came from on the big df 
   # get the mean distance per bio rep
