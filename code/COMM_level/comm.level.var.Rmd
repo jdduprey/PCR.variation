@@ -98,7 +98,7 @@ BOTTLEcentroids <- function(list, SampleVector){
   for(j in 1:length(SampleVector)){
     df <- list[[j]]
     sub.tib <- df %>% select(!c(Hash))
-    nBIOPCR <- length(colnames(sub.tib))
+    nBIOPCR <- ncol(sub.tib)
     flip.tib <- t(sub.tib)
     
     dis <- vegdist(flip.tib)
