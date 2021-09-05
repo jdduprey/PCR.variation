@@ -1,11 +1,11 @@
 ---
 title: "Exploring various methods of assessing dissimilarity between communities within different PCR replicates"
 author: "Joe Duprey, Helen Casendino"
-date: "7/21/2021"
+date: "9/5/2021"
 output: html_document
 ---
 
-This document looks at using Bray Curtis Dissimilarity, Jaccard methods, and Beta Diversity to assess dissimilarity between communities within different PCR replicate combinations. I could also combine the 3 functions (bray_by_sample, beta_by_sample, jac_by_sample) into 1 function.
+This document looks at using Bray Curtis Dissimilarity, Jaccard methods, and Beta Diversity to assess dissimilarity between communities within different PCR replicate combinations. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(vegan)
 library(reshape)
+library(stringi)
 ```
 
 Our broad goal here is to try 3 different methods — Jaccard, Bray-Curtis, and Beta Diversity — to quantify dissimilarity in the "communities" of PCR replicates 1, 2 and 3. 
@@ -21,7 +22,7 @@ Our broad goal here is to try 3 different methods — Jaccard, Bray-Curtis, and 
 We start with clean.tech.table.csv (from divide.reps_calc.eDNA.index.Rmd), which includes triplicates, not duplicates. Joe and I think the eDNA index function used isn't perfect yet, but we'll work with it for now. 
 
 ```{r Load data}
-full.proportion.reads <- read.csv("../data/PCR.proportions.csv")
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 ```
 
 ## Step 1: Try Bray Curtis 
@@ -29,7 +30,7 @@ full.proportion.reads <- read.csv("../data/PCR.proportions.csv")
 First, convert to community matrix.
 
 ```{r data to matrix}
-prop.reads <- full.proportion.reads[,4:6] # only eDNA proportion values
+prop.reads <- trip.proportion.reads[,4:6] # only eDNA proportion values
 prop.mat<- t(prop.reads) # columns = Hashes, rows = PCR #, values = nReads proportions
 ```
 
@@ -58,7 +59,7 @@ bray_by_sample <- function(df, bioVector, indexCols){
     return(bray.mat)
 }
 
-bray_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
+bray_by_sample(trip.proportion.reads, unique(trip.proportion.reads$bio), c(4:6))
 
 ```
 
@@ -68,7 +69,7 @@ First, let's visualize how BCD distributions look in different PCR runs.
 
 ```{r Visualize BCD distributions}
 
-bray.output <-   bray_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
+bray.output <-   bray_by_sample(trip.proportion.reads, unique(trip.proportion.reads$bio), c(4:6))
 
 par(mfrow = c(1, 3))
 hist(bray.output[,1], main="PCRs 1 & 2", xlab="BCD", ylim=c(0,60), col = "orange") 
@@ -114,7 +115,7 @@ beta_by_sample <- function(df, bioVector, indexCols){
     return(beta.mat)
 }
 
-beta.output<- beta_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
+beta.output<- beta_by_sample(trip.proportion.reads, unique(trip.proportion.reads$bio), c(4:6))
 
 par(mfrow = c(1, 3))
 hist(beta.output[,1], main="PCRs 1 & 2", xlab="BDiv", col = "red")
@@ -134,41 +135,97 @@ adonis(BetaDiv ~ PCR.Combo,data = beta.perm, permutations = 9999) # p=0.88
 
 ## Step 3: Try Jaccard Similarity (bias towards rare sp)
 
+Uses code similar to comm.level.var.Rmd
 *Notes on jaccard* 
 - "measures the similarity between two sets of data. It can range from 0 to 1. The higher the number, the more similar the two sets of data."
-- vegdist jaccard (same as earlier BCD) wants taxa/hashes as columns.
+- vegdist jaccard (same as earlier BCD) wants taxa/hashes as columns...need data to be binary 
 
-Pretty much just repeating what I did for the BCD above. 
+1) Getting jaccard index between PCR runs 
 
-```{r Jaccard between PCR runs between samples and visualize}
+```{r Jaccard between PCR runs within bottles and visualize}
 
-jac_by_sample <- function(df, bioVector, indexCols){  
+jaccard.PCR <- function(df, bottles, PCR.cols){  
+  jaccards <-  rep(NA, length(bottles))
   
-  jac.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c(1.2,2.3,1.3))) # different PCR rep combinations
-  
-  for(i in 1:length(bioVector)){
-    sample.tib <- df[df$bio == bioVector[i],indexCols]
-    jac.tib <- t(sample.tib)
-    jac.results <- as.matrix(vegdist(jac.tib, method="jaccard"))
-    jac.mat[i,] <- c(jac.results[1,2], jac.results[3,2], jac.results[1,3]) # PCR 1&2, 2&3, 1&3
+  # proportion data needs to be in presence absence, convert proportion data to binary
+  for(m in PCR.cols){
+    df[which(df[,m] != 0),m] <- 1
   }
-    return(jac.mat)
+  
+  for(j in 1:length(bottles)){
+    bottle.hashes <- t(df[df$bio == bottles[j],PCR.cols]) # to get all PCR props from that one sample
+    dis <- vegdist(bottle.hashes, method="jaccard")
+    grouping <- factor(rep(1,3), labels=bottles[j])
+    centroid<- betadisper(dis, group = grouping)
+    jaccards[j] <- mean(centroid$distances)
+    print(j) # progress bar
+  }
+    return(jaccards)
 }
 
-jac.output <- jac_by_sample(full.proportion.reads, unique(full.proportion.reads$bio), c(4:6))
+jac.PCR.output <- jaccard.PCR(trip.proportion.reads, unique(trip.proportion.reads$bio), 3:5)
 
-par(mfrow = c(1, 3))
-hist(jac.output[,1], main="PCRs 1 & 2", xlab="Jaccard", col = "purple")
-hist(jac.output[,2], main="PCRs 2 & 3", xlab="Jaccard", col = "purple")
-hist(jac.output[,3], main="PCRs 1 & 3", xlab="Jaccard", col = "purple")
+hist(jac.PCR.output, col = viridis::plasma(3,0.4,0.7), main = "PCR Variation", xlab = "Distance to Centroid (Jaccard Indices)")
+# text(0.27, 50,"mean = 0.418")
 ```
 
-```{r permanova on jaccard}
-jac.perm <- melt(as.data.frame(jac.output))
-colnames(jac.perm) <- c("PCR.Combo", "JaccardDiv")
-adonis(JaccardDiv ~ PCR.Combo,data = jac.perm, permutations = 9999) # p=0.411
+2) Getting jaccard index between bottles...need to nest data
+
+```{r data wrangling, not taking PCR mean}
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  
+  print(i)
+}
 ```
 
-So thus far, permanovas on Bray Curtis, Beta Diversity, and Jaccard distance have shown that PCR replicates don't produce significantly different communities within biological samples. 
+3) Getting jaccard index between nottle.PCR runs 
 
-Another note: across strategies, 14% of all dissimilarity values were 1. 
+```{r Jaccard between bottle+PCR runs within samples and visualize}
+
+jaccard.Bottle <- function(list, SampleVector){
+  
+  centroid.dists <- rep(NA, length(SampleVector))
+  
+  for(j in 1:length(SampleVector)){
+    df <- list[[j]]
+    sub.tib <- df %>% select(!c(Hash))
+    
+     # convert proportions to binary 
+     for(m in 1:ncol(sub.tib)){
+    sub.tib[which(sub.tib[,m] != 0),m] <- 1
+     }
+    
+    flip.tib <- t(sub.tib)
+    dis <- vegdist(flip.tib, method = "jaccard")
+    grouping <- factor(rep(1,ncol(sub.tib), labels=SampleVector[j]))
+    centroid<- betadisper(dis, group = grouping)
+    centroid.dists[j] <- mean(centroid$distances)
+    print(j)
+  }
+  return(centroid.dists)
+}
+
+jac.bottle.output <- jaccard.Bottle(nested.props$data, nested.props$sample)
+
+#visualize
+hist(jac.bottle.output, col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation (no PCR averaging)", xlab = "Distance to Centroid (Jaccard Indices)")
+#text(0.37, 20,"mean = 0.506")
+```
