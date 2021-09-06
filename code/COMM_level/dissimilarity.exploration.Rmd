@@ -25,7 +25,7 @@ We start with clean.tech.table.csv (from divide.reps_calc.eDNA.index.Rmd), which
 trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 ```
 
-## Step 1: Try Bray Curtis 
+## Step 1: Try Bray Curtis (outdated?) 
 
 First, convert to community matrix.
 
@@ -94,44 +94,108 @@ Hm p value of 0.397. So at very first glance, reads don't differ that much betwe
 - adonis tests for homogeneity of dispersion among groups
 
 
-## Step 2: Try Beta Diversity (looking at the number of unique hashes/taxa in samples between PCR reps)
+## Step 2: Try Beta Diversity (looking at the number of unique hashes/taxa in samples between reps)
 
-So beta diversity looks at total # of unique species in each sample/PCR replicate. Let's repeat what we did for the BCD (dissimilarity by sample between PCR reps)
-
-```{r Beta Div test & visualize }
+So beta diversity looks at total # of unique species in each PCR replicate. 
+```{r Beta Div function for PCR reps & plot}
 # again, betadiver wants PCR reps (equate to site) as rows, and Hashes (equate to species) as columns
-# in betadiver(), we're using method 1 (formula = (b+c)/2)
+# betadiver(help=T) lists methods...which one to use? I'll go with "sim" for now, Koleff et al. (2003) seem to think it's a good one.
 
-beta_by_sample <- function(df, bioVector, indexCols){  
-  
-    beta.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c(1.2,2.3,1.3))) # different PCR rep combinations
-  
-  for(i in 1:length(bioVector)){
-    sample.tib <- df[df$bio == bioVector[i],indexCols]
-    beta.tib <- t(sample.tib)
-    beta.results <- as.matrix(betadiver(beta.tib, method = 1))
-    beta.mat[i,] <- c(beta.results[1,2], beta.results[3,2], beta.results[1,3]) # PCR 1&2, 2&3, 1&3
+beta.PCR <- function(df, bottles, PCR.cols){  
+    betas <-  rep(NA, length(bottles))
+   
+      # proportion data needs to be in presence absence, convert proportion data to binary
+  for(m in PCR.cols){
+    df[which(df[,m] != 0),m] <- 1
   }
-    return(beta.mat)
+    
+  for(j in 1:length(bottles)){
+     beta.tib <- t(df[df$bio == bottles[j],PCR.cols]) 
+    beta.dis <- betadiver(beta.tib, method = "sim")
+    grouping <- factor(rep(1,3), labels=bottles[j])
+    centroid<- betadisper(beta.dis, group = grouping)
+    betas[j] <- mean(centroid$distances)
+ #   print(j)
+  }
+    return(betas)
 }
 
-beta.output<- beta_by_sample(trip.proportion.reads, unique(trip.proportion.reads$bio), c(4:6))
+beta.PCR.output<- beta.PCR(trip.proportion.reads, unique(trip.proportion.reads$bio),3:5)
 
-par(mfrow = c(1, 3))
-hist(beta.output[,1], main="PCRs 1 & 2", xlab="BDiv", col = "red")
-hist(beta.output[,2], main="PCRs 2 & 3", xlab="BDiv", col = "red")
-hist(beta.output[,3], main="PCRs 1 & 3", xlab="BDiv", col = "red")
+# Warning: In betadisper(beta.dis, group = grouping) :
+#  some squared distances are negative and changed to zero
+# Occured when j = c(31, 107, 175, 198,199,202,203,206)...not sure why this is happening, but I can just delete these rows for now
+warnings <- c(31, 107, 175, 198,199,202,203,206)
+beta.PCR.output <- beta.PCR.output[-warnings]
+
+#plot
+hist(beta.PCR.output, col = viridis::plasma(3,0.4,0.7), main = "PCR Variation", xlab = "Distance to Centroid (Beta Diversity)")
+# text(0.15, 40,"mean = 0.285")
 ```
 
-(!!) I want to talk about this more...I'm not confident in how to interpret the beta diversity output. I think 1 represents high dissimilarity though? In Hash richness within a sample between PCR reps. 
+2) Getting beta div between bottles...need to nest data
 
+```{r data wrangling, not taking PCR mean}
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
 
-```{r permanova on bdivs}
-beta.perm <- melt(as.data.frame(beta.output))
-colnames(beta.perm) <- c("PCR.Combo", "BetaDiv")
-adonis(BetaDiv ~ PCR.Combo,data = beta.perm, permutations = 9999) # p=0.88
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  
+  print(i)
+}
 ```
 
+3) Getting beta div between bottle.PCR runs 
+
+```{r Beta between bottle+PCR runs within samples and visualize}
+
+beta.Bottle <- function(list, SampleVector){
+  
+  centroid.dists <- rep(NA, length(SampleVector))
+  
+  for(j in 1:length(SampleVector)){
+    df <- list[[j]]
+    sub.tib <- df %>% select(!c(Hash))
+    
+     for(m in 1:ncol(sub.tib)){
+    sub.tib[which(sub.tib[,m] != 0),m] <- 1
+     }
+    
+    flip.tib <- t(sub.tib)
+    beta.dis <- betadiver(flip.tib, method = "sim")
+    grouping <- factor(rep(1,ncol(sub.tib)), labels=SampleVector[j])
+    centroid<- betadisper(beta.dis, group = grouping)
+    centroid.dists[j] <- mean(centroid$distances)
+    print(j)
+  }
+  return(centroid.dists)
+}
+
+beta.bottle.output <- beta.Bottle(nested.props$data, nested.props$sample)
+
+# gave same warning when j=c(11,22,35,60,68,69), so let's cut those for now. 
+warnings <- c(31, 107, 175, 198,199,202,203,206)
+beta.bottle.output <- beta.bottle.output[-warnings]
+
+#visualize
+hist(beta.bottle.output, col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation (no PCR averaging)", xlab = "Distance to Centroid (Beta Diversity)")
+#text(0.2, 12,"mean = 0.357")
+```
 
 ## Step 3: Try Jaccard Similarity (bias towards rare sp)
 
@@ -196,7 +260,7 @@ for(i in 1:length(nested.props$sample)) {
 }
 ```
 
-3) Getting jaccard index between nottle.PCR runs 
+3) Getting jaccard index between bottle.PCR runs 
 
 ```{r Jaccard between bottle+PCR runs within samples and visualize}
 
@@ -215,7 +279,7 @@ jaccard.Bottle <- function(list, SampleVector){
     
     flip.tib <- t(sub.tib)
     dis <- vegdist(flip.tib, method = "jaccard")
-    grouping <- factor(rep(1,ncol(sub.tib), labels=SampleVector[j]))
+    grouping <- factor(rep(1,ncol(sub.tib)), labels=SampleVector[j])
     centroid<- betadisper(dis, group = grouping)
     centroid.dists[j] <- mean(centroid$distances)
     print(j)
