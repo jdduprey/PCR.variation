@@ -26,9 +26,9 @@ This code also calculates distance to the centroid between Bray Curtis Distances
  - dup.proportion.reads = the proportions of each hash by PCR replicate (ONLY duplicate PCR samples and triplicate PCR samples that had one replicate chopped bc of low total reads)
 
 ```{r load in data}
-trip.proportion.reads <- read.csv('/data/PCR.proportions.clean.csv')
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 
-dup.proportion.reads <- read.csv('../data/PCR.duplic.proportions.csv')
+dup.proportion.reads <- read.csv('../../data/PCR.duplic.proportions.csv')
 ```
 
 
@@ -68,7 +68,7 @@ PCRcentroids_trip <- function(df, cutoffs, bioVector){
      
         DistCentroid_ExclPercent[[1]][i,j] <- 1 - (length(sub.tib$Hash)/length(bioProps_Hashes$Hash)) #for each cutoff in each bio rep, keeps track of what percent of Hashes were removed with cutoff in exclusion percent matrix
       
-      sub.tib <- bioProps_Hashes %>% filter(Hash %in% sub.tib$Hash) %>% select(!c(Hash, bio,Miseq_run)) # all PCR props corresponding to remaining hashes
+      sub.tib <- bioProps_Hashes %>% filter(Hash %in% sub.tib$Hash) %>% select(!c(Hash, bio)) # all PCR props corresponding to remaining hashes
   
       flip.tib <- t(sub.tib)
       dis <- vegdist(flip.tib)
@@ -99,7 +99,7 @@ PCRcentroids_dup <- function(df, cutoffs, bioVector){
       sub.tib <- meanProp.acrossPCR %>% filter(meanProp.PCR > cutoffs[i]) # chop hashes below proportion cutoff
      DistCentroid_ExclPercent[[1]][i,j] <- 1 - (length(sub.tib$Hash)/length(bioProps_Hashes$Hash)) #for each cutoff in each bio rep, keeps track of what percent of Hashes were removed with cutoff in exclusion percent matrix
    
-       sub.tib <- bioProps_Hashes %>% filter(Hash %in% sub.tib$Hash) %>% select(!c(Hash, bio,Miseq_run))
+       sub.tib <- bioProps_Hashes %>% filter(Hash %in% sub.tib$Hash) %>% select(!c(Hash, bio))
       
       flip.tib <- t(sub.tib)
       dis <- vegdist(flip.tib)
@@ -117,7 +117,7 @@ PCRcentroids_dup <- function(df, cutoffs, bioVector){
 Now let's get output for duplicate and triplicate data. 
 
 ```{r Function output for dup and trip data}
-trip.output <- PCRcentroids_trip(trip.proportion.reads, seq(0,0.000075, 0.000001),unique(trip.proportion.reads$bio))
+trip.output <- PCRcentroids_trip(trip.proportion.reads, c(0,0.000025, 0.00005, 0.000075,0.00009),unique(trip.proportion.reads$bio))
 
 dup.output <- PCRcentroids_dup(dup.proportion.reads, seq(0,0.000075, 0.000001),unique(dup.proportion.reads$bio))
 ```
@@ -125,12 +125,60 @@ dup.output <- PCRcentroids_dup(dup.proportion.reads, seq(0,0.000075, 0.000001),u
 
 ## Step 3: Plotting.
 
-  a) trip (and dup).plot.A has distance to centroid and %hash excluded vs. cutoff prop
-  b) trip(and dup).plot.B has distance to centroid vs. cutoff prop
-  c) trip(and dup).plot.C shows variability in distribution of hashes chopped across bio replicates changes with cutoff 
+```{r Fig.1a: cutoff vs. distance to centroid, across *all* bottles (triplicates)}
 
-### Triplicate plotting: 
+df.fig.1a <- as.data.frame(trip.output$centroid.dists) %>% mutate(cutoff = c(0,0.000025, 0.00005, 0.000075,0.00009)) 
+df.fig.1a <- pivot_longer(df.fig.1a, cols=(colnames(df.fig.1a)[1:234]), names_to = "bottle")
 
+
+Fig.1a <- df.fig.1a %>% ggplot(aes(x=cutoff, y=value, group=bottle, color=bottle)) +
+           geom_point() +  theme_minimal() +
+          theme(legend.position = "none") + 
+            ylab("Distance to Centroid (BCD)") + xlab("Proportion Cutoff")  + 
+            ggtitle("PCR Variation") +
+               theme(plot.title = element_text(size = 15, face = "bold"))
+Fig.1a
+```
+
+```{r Fig.1b:  cutoff vs. distance to centroid, averaged across bottles (triplicates)}
+mean.centroidDists <- rowMeans(as.data.frame(trip.output$centroid.dists))
+
+Fig.1b <- ggplot() +  theme_minimal() + 
+              geom_point(mapping = aes(x = c(0,0.000025, 0.00005, 0.000075,0.00009), y = mean.centroidDists, size = .5), color = "cadetblue4") + 
+              theme(legend.position = "none") +  
+            scale_y_continuous(name = "Distance to Centroid") + xlab("Proportion Cutoff") +                ggtitle("PCR Variation") +
+               theme(plot.title = element_text(size = 15, face = "bold")) 
+              #coord_cartesian(xlim = c(0,0.000095), ylim = c(0, 0.5))
+Fig.1b
+```
+
+```{r Fig.1c: cutoff vs. % hash excluded, averaged across bottles (triplicates)}
+mean.exclpercent <- rowMeans(as.data.frame(trip.output$excl.percents)) *100 #percents, not proportions
+
+Fig.1c <- ggplot() +  theme_minimal() + 
+              geom_point(mapping = aes(x = c(0,0.000025, 0.00005, 0.000075,0.00009), y = mean.exclpercent, size = .5), color = "aquamarine3") + 
+              theme(legend.position = "none") +  
+            scale_y_continuous(name = "% Hash Excluded") + xlab("Proportion Cutoff") +                ggtitle("PCR Variation") +
+               theme(plot.title = element_text(size = 15, face = "bold"))
+Fig.1c
+```
+
+```{r Fig.1d: cutoff vs. % hash excluded, averaged across bottles (triplicates)}
+ violin_dat<-  as.data.frame(trip.output$excl.percents) %>% mutate(cutoffs = c(0,0.000025, 0.00005, 0.000075,0.00009)) 
+violin_dat$cutoffs <- as.factor(violin_dat$cutoffs)
+bottles <- colnames(violin_dat)[1:234]
+violin_long <- pivot_longer(violin_dat, cols = bottles, names_to = "bottles", values_to = "percent_excl" )
+
+Fig.1d <- ggplot(violin_long, aes(x=cutoffs, y=percent_excl*100, fill = cutoffs)) + geom_violin() +
+  labs(x="Proportion Cutoff", y = "% of Hashes Excluded") + 
+  scale_fill_brewer(palette="RdBu") + theme_minimal() +  
+  theme(legend.position = "none") 
+
+Fig.1d
+```
+
+
+Old plots:
 ```{r Getting centroid distances averaged over triplicate bio samples}
 mean.centroidDists <- rowMeans(as.data.frame(trip.output$centroid.dists)) # average distances to centroid of PCR reps for all exclusion proportion values across biological replicates
 cutoff.centroid.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), cent.distance = mean.centroidDists) # combines with cutoffs
@@ -138,7 +186,6 @@ cutoff.centroid.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), cent.dista
 mean.exclpercent <- rowMeans(as.data.frame(trip.output$excl.percents)) *100 #percents, not proportions
 exclpercent.df <- data.frame(cutoffs = seq(0,0.000075, 0.000001), exclperc = mean.exclpercent)
 ```
-
 ```{r plot with two y axes (1 = percent hashes excluded, 2 = dist to centroid)}
 trip.plot.A <- ggplot() +  theme_minimal() + 
   geom_bar(mapping = aes(x = exclpercent.df$cutoffs, y = exclpercent.df$exclperc), stat = "identity", fill = "gainsboro") +
@@ -152,13 +199,11 @@ trip.plot.A <- ggplot() +  theme_minimal() +
 
 trip.plot.A
 ```
-
 ```{r plot with 1 y axis = dist to centroid)}
 trip.plot.B <-  ggplot() +  theme_minimal() + geom_point(mapping = aes(x = cutoff.centroid.df$cutoffs, y = cutoff.centroid.df$cent.distance), size = .5, color = "darkblue") + theme(legend.position = "none") + theme(axis.title.y = element_text(color = "darkblue")) + scale_y_continuous(name = " Distance to Centroid") + xlab("Proportion Cutoff") 
 
 trip.plot.B 
 ```
-
 ```{r violin plot}
  violin_dat<-  as.data.frame(trip.output$excl.percents) %>% mutate(cutoffs = seq(0,0.000075, 0.000001)) 
 violin_dat$cutoffs <- as.factor(violin_dat$cutoffs)
@@ -171,7 +216,6 @@ trip.plot.C
 # why are there so many hashes excluded when cutoff is 0? need to check how violin plot is grouping
 
 ```
-
 
 ### Duplicate plotting: 
 
@@ -217,6 +261,13 @@ dup.plot.C
 ```
 
 
+
+
+
+################################################################################
+BOTTLE VARIATION
+################################################################################
+
 ## Bio-PCR Centroid Distances
 Extra code calculating same thing as above (distance to centroids), just no exclusions (no rarity cutoffs) and over loops over sampling events. Calculates distance to centroid of bray curtis dissimilarities between bioPCR communities, not just PCR communities. 
 
@@ -224,12 +275,24 @@ Extra code calculating same thing as above (distance to centroids), just no excl
 # list = list of data frames corresponding to each sampling event. Within each df, columns correspond to bioPCR combos (A1, B3, C2 etc) and rows correspond to each Hashes
 # SampleVector is vector of sampling events (PO20170311, etc)
 
-BIOPCRcentroids <- function(list, SampleVector){
+BIOPCRcentroids <- function(list, cutoffs, SampleVector){
   
-  dists <- rep(NA, length(SampleVector))
   
-  for(j in 1:length(dists)){
+    DistCentroid_ExclPercent <- list(excl.percents = matrix(NA, nrow = length(cutoffs), ncol = length(SampleVector)),
+                                   centroid.dists = matrix(NA, nrow = length(cutoffs), ncol = length(SampleVector)))
+    
+  for(j in 1:length(SampleVector)){
     df <- list[[j]]
+    cols<- as.vector(colnames(df)[-1])
+    
+     meanProp.across <- df %>% mutate(meanProp = rowMeans(df[,-1])) %>% select(meanProp)
+
+    for(i in 1:length(cutoffs)){
+      sub.tib <- meanProp.across %>% filter(meanProp > cutoffs[i]) # chop hashes below proportion cutoff
+     DistCentroid_ExclPercent[[1]][i,j] <- 1 - (length(sub.tib$Hash)/length(df$Hash)) 
+  
+       sub.tib <- df %>% filter(Hash %in% sub.tib$Hash) %>% select(!c(Hash))
+    
     sub.tib <- df %>% select(!c(Hash))
     nBIOPCR <- length(colnames(sub.tib))
     flip.tib <- t(sub.tib)
@@ -237,10 +300,11 @@ BIOPCRcentroids <- function(list, SampleVector){
     dis <- vegdist(flip.tib)
     grouping <- factor(rep(1,nBIOPCR))
     centroid<- betadisper(dis, group = grouping)
-    dists[j] <- mean(centroid$distances)
+    DistCentroid_ExclPercent[[2]][i,j] <- mean(centroid$distances)
     print(j)
   }
-  return(dists)
+  return(DistCentroid_ExclPercent)
+  }
 }
 ```
 
@@ -254,7 +318,7 @@ long.props <- trip.proportion.reads %>%
 
 get.PCRn <- long.props %>% 
   mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
-  select(-c(bio,Miseq_run,PCR))
+  select(-c(bio,PCR))
 
 nested.props <- get.PCRn %>% 
   unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
@@ -274,9 +338,8 @@ for(i in 1:length(nested.props$sample)) {
 Run function:
 
 ```{r bioPCR output}
-bioPCRoutput <- BIOPCRcentroids(nested.props$data, nested.props$sample)
+bioPCRoutput <- BIOPCRcentroids(nested.props$data, cutoffs = c(0,0.000025, 0.00005, 0.000075,0.00009), nested.props$sample)
 ```
-
 We can plot both the PCR output (the first row of trip.output, no exclusions) and bioPCR output in histograms
 
 ```{r plotting}
