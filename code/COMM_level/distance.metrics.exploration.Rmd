@@ -1,11 +1,14 @@
 ---
 title: "Exploring various methods of assessing dissimilarity between communities within different PCR replicates"
 author: "Joe Duprey, Helen Casendino"
-date: "9/5/2021"
+date: "9/9/2021"
 output: html_document
 ---
 
-This document looks at using Bray Curtis Dissimilarity, Jaccard methods, and Beta Diversity to assess dissimilarity between communities within different PCR replicate combinations. 
+Our broad goal here is to try 3 different methods — Jaccard, Bray-Curtis, and Beta Diversity — to quantify dissimilarity in the "communities" of PCR replicates 1, 2 and 3. 
+
+***NOTE*** 
+The beta diversity and jaccard code is updated - and looks at both PCR and bottle variation among communities. The Bray-Curtis code is outdated - an updated version looking at Bray-Curtis Dissimilarity can be found in comm.level.var.Rmd in the COMM_level folder. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -16,85 +19,11 @@ library(vegan)
 library(reshape)
 library(stringi)
 ```
-
-Our broad goal here is to try 3 different methods — Jaccard, Bray-Curtis, and Beta Diversity — to quantify dissimilarity in the "communities" of PCR replicates 1, 2 and 3. 
-
-We start with clean.tech.table.csv (from divide.reps_calc.eDNA.index.Rmd), which includes triplicates, not duplicates. Joe and I think the eDNA index function used isn't perfect yet, but we'll work with it for now. 
-
 ```{r Load data}
 trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 ```
 
-## Step 1: Try Bray Curtis (outdated?) 
-
-First, convert to community matrix.
-
-```{r data to matrix}
-prop.reads <- trip.proportion.reads[,4:6] # only eDNA proportion values
-prop.mat<- t(prop.reads) # columns = Hashes, rows = PCR #, values = nReads proportions
-```
-
-
-
-```{r BCD between PCR runs across samples}
-vegdist(prop.mat, method="bray", na.rm = T)
-```
-
-All yielding pretty similar BC values (~0.41). But I'm worried that we might be glossing over some variability between bottles (ie, variation b/w PCR rep 1, 2 and 3 might be different based on the sample). Let's try getting PCR BC dissimilarity by sample. 
-
-```{r BCD between PCR runs between samples}
-
- #bioVector = list of unique biological replicate IDs, indexCols = col numbers of eDNA proportion values (by PCR #). df needs to have 3 columns corresponding to eDNA proportions of different PCR runs
-
-bray_by_sample <- function(df, bioVector, indexCols){  
-  
-    bray.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c(1.2,2.3,1.3))) # different PCR rep combinations
-  
-  for(i in 1:length(bioVector)){
-    sample.tib <- df[df$bio == bioVector[i],indexCols]
-    bray.tib <- t(sample.tib)
-    bray.results <- as.matrix(vegdist(bray.tib, method="bray", na.rm = T))
-    bray.mat[i,] <- c(bray.results[1,2], bray.results[3,2], bray.results[1,3]) # PCR 1&2, 2&3, 1&3
-  }
-    return(bray.mat)
-}
-
-bray_by_sample(trip.proportion.reads, unique(trip.proportion.reads$bio), c(4:6))
-
-```
-
-Also, I don't want to overfocus on variability between samples, because that's not what we're interested in. So maybe the chunk above is totally obsolete. However, I wonder if doing a permanova between the three *distributions* of BCDs (separated by sample) is more informative than just looking at 3 BCD values (for each PCR combination, across samples). ????
-
-First, let's visualize how BCD distributions look in different PCR runs. 
-
-```{r Visualize BCD distributions}
-
-bray.output <-   bray_by_sample(trip.proportion.reads, unique(trip.proportion.reads$bio), c(4:6))
-
-par(mfrow = c(1, 3))
-hist(bray.output[,1], main="PCRs 1 & 2", xlab="BCD", ylim=c(0,60), col = "orange") 
-hist(bray.output[,2], main="PCRs 2 & 3", xlab="BCD", ylim=c(0,60), col = "orange") 
-hist(bray.output[,3], main="PCRs 1 & 3", xlab="BCD", ylim=c(0,60), col = "orange")
-```
-
-Now, let's compare distributions. We have to change the matrix around a bit.
-
-```{r PERMANOVA on 3 BCD distributions}
-
-bray.perm <- melt(as.data.frame(bray.output))
-colnames(bray.perm) <- c("PCR.Combo", "BCD")
-adonis(BCD ~ PCR.Combo,data = bray.perm, permutations = 9999)
-```
-
-Hm p value of 0.397. So at very first glance, reads don't differ that much between PCR replicates. (p < 0.05 = sig dissimilarity) 
-
-*Notes on permanova + adonis:* 
-- "Permutational multivariate analysis of variance (PERMANOVA) is a non-parametric multivariate statistical test. It is used to compare groups of objects and test the null hypothesis that the centroids and dispersion of the groups as defined by measure space are equivalent for all groups." 
-- So we want to see how the DISSIMILARITY between samples in PCR Rep 1&2 compares to the DISSIMILARITY between samples in PCR Rep 1&3, etc. 
-- adonis tests for homogeneity of dispersion among groups
-
-
-## Step 2: Try Beta Diversity (looking at the number of unique hashes/taxa in samples between reps)
+## Step 1: Try Beta Diversity (looking at the number of unique hashes/taxa in samples between reps)
 
 So beta diversity looks at total # of unique species in each PCR replicate. 
 ```{r Beta Div function for PCR reps & plot}
@@ -197,7 +126,7 @@ hist(beta.bottle.output, col = viridis::viridis(3,0.4,0.7), main = "Bottle Varia
 #text(0.2, 12,"mean = 0.357")
 ```
 
-## Step 3: Try Jaccard Similarity (bias towards rare sp)
+## Step 2: Try Jaccard Similarity (bias towards rare sp)
 
 Uses code similar to comm.level.var.Rmd
 *Notes on jaccard* 
@@ -293,3 +222,50 @@ jac.bottle.output <- jaccard.Bottle(nested.props$data, nested.props$sample)
 hist(jac.bottle.output, col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation (no PCR averaging)", xlab = "Distance to Centroid (Jaccard Indices)")
 #text(0.37, 20,"mean = 0.506")
 ```
+
+## Step 3: Try Bray Curtis 
+
+First, convert to community matrix.
+
+```{r data to matrix}
+prop.reads <- trip.proportion.reads[,4:6] # only eDNA proportion values
+prop.mat<- t(prop.reads) # columns = Hashes, rows = PCR #, values = nReads proportions
+```
+Let's try getting PCR BC dissimilarity by bottle. 
+
+```{r BCD between PCR runs between samples}
+ #bioVector = list of unique biological replicate IDs, indexCols = col numbers of eDNA proportion values (by PCR #). df needs to have 3 columns corresponding to eDNA proportions of different PCR runs
+
+bray_by_sample <- function(df, bioVector, indexCols){  
+  
+    bray.mat <- matrix(NA, nrow = length(bioVector), ncol = 3, dimnames = list(bioVector, c(1.2,2.3,1.3))) # different PCR rep combinations
+  
+  for(i in 1:length(bioVector)){
+    sample.tib <- df[df$bio == bioVector[i],indexCols]
+    bray.tib <- t(sample.tib)
+    bray.results <- as.matrix(vegdist(bray.tib, method="bray", na.rm = T))
+    bray.mat[i,] <- c(bray.results[1,2], bray.results[3,2], bray.results[1,3]) # PCR 1&2, 2&3, 1&3
+  }
+    return(bray.mat)
+}
+```
+
+```{r Visualize BCD distributions}
+bray.output <-   bray_by_sample(trip.proportion.reads, unique(trip.proportion.reads$bio), c(4:6))
+```
+
+Now, let's compare distributions. We have to change the matrix around a bit.
+
+```{r PERMANOVA on 3 BCD distributions}
+bray.perm <- melt(as.data.frame(bray.output))
+colnames(bray.perm) <- c("PCR.Combo", "BCD")
+adonis(BCD ~ PCR.Combo,data = bray.perm, permutations = 9999)
+```
+
+Hm p value of 0.397. So at very first glance, reads don't differ that much between PCR replicates. (p < 0.05 = sig dissimilarity) 
+
+*Notes on permanova + adonis:* 
+- "Permutational multivariate analysis of variance (PERMANOVA) is a non-parametric multivariate statistical test. It is used to compare groups of objects and test the null hypothesis that the centroids and dispersion of the groups as defined by measure space are equivalent for all groups." 
+- So we want to see how the DISSIMILARITY between samples in PCR Rep 1&2 compares to the DISSIMILARITY between samples in PCR Rep 1&3, etc. 
+- adonis tests for homogeneity of dispersion among groups
+
