@@ -1,6 +1,6 @@
 # PCR.variation
 
-Project using existing eDNA metabarcoding data to look at variation arising from technical and biological processes and quantifying how these influence results.  
+Project using existing eDNA metabarcoding data to quantify variation arising from technical and biological processes.
 
  * [Tides edna repo](https://github.com/invertdna/eDNA_Tides)
  * [Hood Canal edna repo](https://github.com/ramongallego/eDNA.and.Ocean.Acidification.Gallego.et.al.2020)
