@@ -23,7 +23,7 @@ library(tidyverse)
 
 First get raw ASV data. 
 
-```{r load data, create technical and bio replicate columns }
+```{r load data, create technical and bio replicate columns}
 raw.ASVs <- read.csv('../input/raw_ASVs.csv')
 
 by.tech.table <- raw.ASVs %>%

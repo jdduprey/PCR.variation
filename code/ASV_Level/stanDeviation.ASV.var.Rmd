@@ -8,7 +8,6 @@ output: html_document
 Part A : PCR ASV Variation
 Part B : PCR & Bottle ASV Variation
 Part C : Bottle ASV Variation (averaged across PCR replicates)
-Part D : Site & Date Variation (in progress)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -27,7 +26,7 @@ library(stringi)
   2) Then, I'll loop through different proportion cutoffs (averaging proportions across PCR reps for each hash), each time calculating the LOGNORMAL mean of all of the standard deviations (across bio reps, etc.)
 
 ```{r read in clean triplicate data}
-trip.proportion.reads <- read.csv('../data/PCR.proportions.clean.csv')
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 ```
 
 ```{r standard deviation of each Hash}
