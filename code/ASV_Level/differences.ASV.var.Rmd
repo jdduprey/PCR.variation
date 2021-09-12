@@ -1,0 +1,74 @@
+---
+title: "differences.ASV.var"
+author: "Helen Casendino, Joe Duprey"
+date: "9/10/2021"
+output: html_document
+---
+
+**Goal:** To assign distributions of variation, in units of arithmetic differences (think of better word?), to technical (PCRs) and biological (bottles) sources at the ASV level.
+
+**Strategy:** 
+1) To assign technical PCR variation, get three pairwise differences between PCR replicates for each ASV (basically, p_PCR1 - p_PCR2, p_PCR1 - p_PCR3, and p_PCR2 - p_PCR3). For now, let's take the absolute value of each difference.
+2) To assign random biological variation, take pairwise differences in the same fashion across all bioPCRs for each ASV (A1,B2,C1 etc). However, don't take pairwise differences *within* bottles (A1,A2)
+3) Because the data we're dealing with is so small, we're going to get very small differences.. So I'll try normalizing proportions by multiplying all by 1000. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r dependencies, include=FALSE}
+library(tidyverse)
+library(stringi)
+```
+
+## Part 1: Read in data 
+
+```{r read in clean triplicate data & Normalize}
+trip.proportions.norm <- read.csv('../../data/PCR.proportions.clean.csv')
+
+# assign which columns are PCR columns (dataset specific)
+PCR.cols <- 3:5
+trip.proportions.norm[,PCR.cols] <- trip.proportions.norm[,PCR.cols]*1000
+```
+
+## Part 2: PCR variation (within bottles)
+
+```{r pairwise differences between PCRs}
+diffs.PCR <- function(df, PCR.cols){
+  diffs <- "start"
+  subs <- df[,PCR.cols]
+  
+  # for each ASV, diff between PCRs 1&2, 1&3, 2&3. Then put into larger vector
+  for(i in 1:length(df[,1])){
+    diff_vec <- c(abs(subs[i,1]-subs[i,2]), abs(subs[i,1]-subs[i,3]), abs(subs[i,2]-subs[i,3])) 
+    diffs[(length(diffs) + 1):(3 + length(diffs))] <- diff_vec
+    print(i)
+  }
+  
+  hist <- hist(as.numeric(diffs[-1]), col = viridis::plasma(3,0.4,0.7), main = "PCR Variation", xlab = "Pairwise Differences")
+  
+  return(as.numeric(diffs[-1]))
+  return(hist)
+}
+
+PCR.output <- diffs.PCR(trip.proportions.norm, 3:5)
+```
+
+Thought train: 
+Hm...so since the histogram is just going to be skewed no matter what, and we will still have 0s, I wonder if there is much benefit to normalizing? Also the log data looks good but it can't handle the 0s so000...we need to find the right statistical distribution...Since they're positive values b/w 0 and 1, beta? Does beta accept 0s? hm. 
+
+## Part 3: Bottle variation (within samples)
+
+```{r }
+trip
+
+```
+
+2 ht
+
+
+
+
+
+
+
+
