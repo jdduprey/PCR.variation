@@ -1,5 +1,5 @@
 ---
-title: "Community Level PCR & Bottle Variation"
+title: "Community Level PCR & Bottle Variation - Distance to Centroid"
 author: "Helen Casendino"
 date: "8/30/2021"
 output: html_document
