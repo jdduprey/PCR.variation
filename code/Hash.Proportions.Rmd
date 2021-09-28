@@ -161,7 +161,7 @@ Now, we also need to repeat with our duplicates! As a reminder, we also need to 
 
 ```{r creating full duplicate df}
 
-duplicate.data<- by.tech.table %>%
+duplicate.data <- by.tech.table %>%
   filter(bio %in% two_reps_full$bio) # both low read and true duplicates
 
 # remove PCR *replicates* that had low reads (so leave the remaining two for that bio sample)
