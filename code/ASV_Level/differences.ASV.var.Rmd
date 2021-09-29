@@ -23,11 +23,11 @@ library(stringi)
 ## Part 1: Read in data 
 
 ```{r read in clean triplicate data & Normalize}
-trip.proportions.norm <- read.csv('../../data/PCR.proportions.clean.csv')
+trip.proportions <- read.csv('../../data/PCR.proportions.clean.csv')
 
 # assign which columns are PCR columns (dataset specific)
 PCR.cols <- 3:5
-trip.proportions.norm[,PCR.cols] <- trip.proportions.norm[,PCR.cols]*1000
+#trip.proportions.norm[,PCR.cols] <- trip.proportions.norm[,PCR.cols]*1000
 ```
 
 ## Part 2: PCR variation (within bottles)
@@ -50,7 +50,7 @@ diffs.PCR <- function(df, PCR.cols){
   return(hist)
 }
 
-PCR.output <- diffs.PCR(trip.proportions.norm, 3:5)
+PCR.output <- diffs.PCR(trip.proportions, 3:5)
 ```
 
 Thought train: 
@@ -58,14 +58,57 @@ Hm...so since the histogram is just going to be skewed no matter what, and we wi
 
 ## Part 3: Bottle variation (within samples)
 
-```{r }
-trip
+As always, we need to include this chunk to nest the data from each sample (each sample has a different # of bottles)..
 
+```{r data wrangling, not taking PCR mean}
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  
+  print(i)
+}
 ```
 
-2 ht
+```{r bottle ASV differences function}
+diffs.BOTTLE <- function(list, SampleVector){
+  diffs <- "start"
+  
+   for(j in 1:length(SampleVector)){
+      print(j)
+     df <- list[[j]]
+      sub <- df %>% select(!c(Hash))
+      
+      for(i in 1:length(sub[,1])){
+           x <- as.numeric(sub[i,])
+           differences <-  as.vector(dist(x, method = "manhattan")) # then subset somehow (for 3x bottles, must remove elements 1,2,9,22,23,27,34,35,36..what's the equation to get these hmmm)
+      
+           diffs[(length(diffs) + 1):(3 + length(diffs))] <- differences
+         }
+   }
+  hist <- hist(as.numeric(diffs[-1]), col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation", xlab = "Pairwise Differences")
+  
+  return(as.numeric(diffs[-1]))
+  return(hist)
+}
 
-
+bottle.output <- diffs.BOTTLE(nested.props$data, nested.props$sample)
+``` 
 
 
 
