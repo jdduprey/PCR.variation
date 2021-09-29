@@ -106,7 +106,7 @@ BOTTLE.bcd <- function(list, SampleVector){
     
     print(j)
      
-     df <- list[[j]]
+    df <- list[[j]]
     sub.tib <- df %>% select(!c(Hash))
     flip.tib <- t(sub.tib)
     dis <- vegdist(flip.tib) 
