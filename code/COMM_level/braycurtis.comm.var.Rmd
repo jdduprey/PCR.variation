@@ -1,7 +1,7 @@
 ---
 title: "Community Level PCR & Bottle Variation - Bray Curtis"
-author: "Helen Casendino"
-date: "9/10/2021"
+author: "Helen Casendino, Joe Duprey"
+date: "9/28/2021"
 output: html_document
 ---
   
@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r Dependencies, include=FALSE}
 library(tidyverse)
 library(vegan)
+library(stringi)
 ```
 
 This code functions similarly to centroid.comm.var.Rmd, in that it creates distributions of variability among technical (PCR) and biological (bottle) replicates at the community level, using the OA data with triplicate PCRs. It functions differently in a few ways: 
@@ -81,6 +82,7 @@ for(i in 1:length(nested.props$sample)) {
 }
 ```
 
+
 ```{r create & run function to calculate BCDs by sampling event; Plot}
 # list = list of data frames corresponding to each sampling event. Within each df, columns correspond to bioPCR combos (A1, B3, C2 etc) and rows correspond to each Hashes
 # SampleVector is vector of sampling events (PO20170311, etc)
@@ -88,36 +90,46 @@ BOTTLE.bcd <- function(list, SampleVector){
   bcds <- "start"
  
   # Getting rid of samples with only one bottle
-   for(i in 1:length(SampleVector)){
-  a <- list[[i]]
-  if(((ncol(a) -1)/3) == 1){
-   SampleVector <- SampleVector[-i]
-  }
-}
+       onebottle <- rep(NA, length=100) # we will put the "list" indices of replicates with only one bottle here
   
+       for(i in 1:length(SampleVector)){
+         a <- list[[i]]
+          if(((ncol(a) -1)/3) == 1){ # replicates with only 1 bottle 
+           onebottle[i] <- i # save index
+             SampleVector <- SampleVector[-i] # remove index from sample vector
+  } 
+  }
+        onebottle <- onebottle[!is.na(onebottle)] # remove NAs
+        list <- list[-onebottle] # remove the one bottle elements from list
+   
   for(j in 1:length(SampleVector)){
-    df <- list[[j]]
+    
+    print(j)
+     
+     df <- list[[j]]
     sub.tib <- df %>% select(!c(Hash))
     flip.tib <- t(sub.tib)
     dis <- vegdist(flip.tib) 
-  
-     # getting rid of intra-bottle pairwise comparisons
     dis.mat <- as.matrix(dis) 
-  
-    while(hmmm){ # can i make this while loop stop when it gets an error? I just need it to run thru all lines of code that fit into the matrix dimensions...the errors themselves are not problematic, just that it stops the whole loop...i want the function to run through each line of code until an error is thrown and then move on
-      dis.mat[1:3,1:3] <- NA
+    
+    # getting rid of intra-bottle pairwise comparisons...
+    # remove all cells corresponding to distances within the same bottle
+    tryCatch({
+     dis.mat[1:3,1:3] <- NA
     dis.mat[4:6,4:6]  <- NA
     dis.mat[7:9,7:9] <- NA
     dis.mat[10:12,10:12] <- NA
     dis.mat[13:15,13:15] <- NA
     dis.mat[16:18,16:18] <- NA
-    }
-    
+     if (j==j) stop("subscript out of bounds")
+    }, error=function(e){})
+
     bcd.vector <- unique(as.numeric(na.omit(as.vector(dis.mat)))) 
      bcds[(length(bcds) + 1):(length(bcd.vector) + length(bcds))] <- bcd.vector # all unique bray curtis dists for that sample
-      print(j)
   }
-       his <- hist((as.numeric(bcds[-1])), col = viridis::plasma(3,0.4,0.7), main = "Bottle Variation", xlab = "Bray-Curtis Pairwise Distances")
+        
+  #plot
+       his <- hist((as.numeric(bcds[-1])), col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation", xlab = "Bray-Curtis Pairwise Distances")
   
  return(as.numeric(bcds[-1])) 
  return(his)
@@ -126,6 +138,4 @@ BOTTLE.bcd <- function(list, SampleVector){
 bottle.output <- BOTTLE.bcd(nested.props$data, nested.props$sample)
 ```
 
-Think about how to run while loop..  get around the error issues, as mentioned...I can't think of how to loop through these subsets based on bottle n (2 bottles needs 1st two subsets, 3 bottles needs 1st three, etc) so that I wouldn't need each to take up one line of code
-      
       
