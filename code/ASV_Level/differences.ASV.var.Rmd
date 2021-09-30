@@ -1,7 +1,7 @@
 ---
 title: "differences.ASV.var"
 author: "Helen Casendino, Joe Duprey"
-date: "9/10/2021"
+date: "9/28/2021"
 output: html_document
 ---
 
@@ -10,7 +10,6 @@ output: html_document
 **Strategy:** 
 1) To assign technical PCR variation, get three pairwise differences between PCR replicates for each ASV (basically, p_PCR1 - p_PCR2, p_PCR1 - p_PCR3, and p_PCR2 - p_PCR3). For now, let's take the absolute value of each difference.
 2) To assign random biological variation, take pairwise differences in the same fashion across all bioPCRs for each ASV (A1,B2,C1 etc). However, don't take pairwise differences *within* bottles (A1,A2)
-3) Because the data we're dealing with is so small, we're going to get very small differences.. So I'll try normalizing proportions by multiplying all by 1000. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -40,7 +39,7 @@ diffs.PCR <- function(df, PCR.cols){
   # for each ASV, diff between PCRs 1&2, 1&3, 2&3. Then put into larger vector
   for(i in 1:length(df[,1])){
     diff_vec <- c(abs(subs[i,1]-subs[i,2]), abs(subs[i,1]-subs[i,3]), abs(subs[i,2]-subs[i,3])) 
-    diffs[(length(diffs) + 1):(3 + length(diffs))] <- diff_vec
+    diffs <- c(diffs, diff_vec)
     print(i)
   }
   
@@ -89,16 +88,35 @@ for(i in 1:length(nested.props$sample)) {
 diffs.BOTTLE <- function(list, SampleVector){
   diffs <- "start"
   
+  
+   # Getting rid of samples with only one bottle
+       onebottle <- rep(NA, length=100) # we will put the "list" indices of replicates with only one bottle here
+  
+       for(i in 1:length(SampleVector)){
+         a <- list[[i]]
+          if(((ncol(a) -1)/3) == 1){ # replicates with only 1 bottle 
+           onebottle[i] <- i # save index
+             SampleVector <- SampleVector[-i] # remove index from sample vector
+  } 
+  }
+        onebottle <- onebottle[!is.na(onebottle)] # remove NAs
+        list <- list[-onebottle] # remove the one bottle elements from list
+
+  
    for(j in 1:length(SampleVector)){
       print(j)
      df <- list[[j]]
       sub <- df %>% select(!c(Hash))
       
       for(i in 1:length(sub[,1])){
-           x <- as.numeric(sub[i,])
-           differences <-  as.vector(dist(x, method = "manhattan")) # then subset somehow (for 3x bottles, must remove elements 1,2,9,22,23,27,34,35,36..what's the equation to get these hmmm)
-      
-           diffs[(length(diffs) + 1):(3 + length(diffs))] <- differences
+         x <- as.numeric(sub[i,]) # single row = single ASV
+         
+          for(p in 1:15){ # this only collects the differences between bottles, not within bottles (explanation below)
+            if(p == 1|p == 4|p == 7|p == 10|p==13){if(p < (length(x) - 2)){  diffs <- c(diffs, (abs(x[p] - x[(p+3):length(x)])) ) }}
+            if(p == 1|p == 4|p == 7|p == 10|p==13){if(p < (length(x) - 2)){  diffs <- c(diffs, (abs(x[p] - x[(p+3):length(x)])) ) }}
+            if(p == 1|p == 4|p == 7|p == 10|p==13){if(p < (length(x) - 2)){  diffs <- c(diffs, (abs(x[p] - x[(p+3):length(x)])) ) }}
+          }
+         
          }
    }
   hist <- hist(as.numeric(diffs[-1]), col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation", xlab = "Pairwise Differences")
@@ -107,11 +125,10 @@ diffs.BOTTLE <- function(list, SampleVector){
   return(hist)
 }
 
-bottle.output <- diffs.BOTTLE(nested.props$data, nested.props$sample)
+bottle.output <- diffs.BOTTLE(nested.props$data, nested.props$sample) 
 ``` 
 
-
-
+About the p loop: So we need to get differences between bottles, not within the same bottle (so A1-B1, not A1-A2). And many samples have different numbers of bottles, so we need a way to tell the code which indices, within the row vector of proportions, to compare. There will be at most 18 indices (6 bottles). The (abs(x[p] - x[(p+3):length(x)]) take the index value corresponding to a replicate (ie, A1, or x[1]), and compares it to all other replicates not in the same bottle (x[1] - x[4:length(x)]). We need the if(p < (length(x) - 2)) so that the loop doesn't take differences within the last bottle in each sample...for nitpicky reasons not worth going into complete depth here. 
 
 
 
