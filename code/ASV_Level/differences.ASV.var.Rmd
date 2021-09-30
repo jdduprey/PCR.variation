@@ -49,7 +49,7 @@ diffs.PCR <- function(df, PCR.cols){
   return(hist)
 }
 
-PCR.output <- diffs.PCR(trip.proportions, 3:5)
+PCR.output <- diffs.PCR(trip.proportions, 3:5) # mean = 0.0018
 ```
 
 Thought train: 
@@ -126,6 +126,7 @@ diffs.BOTTLE <- function(list, SampleVector){
 }
 
 bottle.output <- diffs.BOTTLE(nested.props$data, nested.props$sample) 
+# mean = 0.0013
 ``` 
 
 About the p loop: So we need to get differences between bottles, not within the same bottle (so A1-B1, not A1-A2). And many samples have different numbers of bottles, so we need a way to tell the code which indices, within the row vector of proportions, to compare. There will be at most 18 indices (6 bottles). The (abs(x[p] - x[(p+3):length(x)]) take the index value corresponding to a replicate (ie, A1, or x[1]), and compares it to all other replicates not in the same bottle (x[1] - x[4:length(x)]). We need the if(p < (length(x) - 2)) so that the loop doesn't take differences within the last bottle in each sample...for nitpicky reasons not worth going into complete depth here. 
