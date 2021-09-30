@@ -112,6 +112,10 @@ BOTTLE.bcd <- function(list, SampleVector){
     dis <- vegdist(flip.tib) 
     dis.mat <- as.matrix(dis) 
     
+    # PRINT DISTANCE MATRICES BEFORE REMOVAL <- can remove later // joe getting up to speed
+    print(SampleVector[j])
+    print(dis.mat)
+    
     # getting rid of intra-bottle pairwise comparisons...
     # remove all cells corresponding to distances within the same bottle
     tryCatch({
@@ -123,6 +127,9 @@ BOTTLE.bcd <- function(list, SampleVector){
     dis.mat[16:ncol(dis.mat),16:18] <- NA
      if (j==j) stop("subscript out of bounds")
     }, error=function(e){})
+    
+    # PRINT DISTANCE MATRICES AFTER REMOVAL <- can remove later // joe getting up to speed
+    print(dis.mat)
 
     bcd.vector <- as.numeric(na.omit(as.vector(dis.mat))) # remove intra-bottle comparisons
   bcd.vector <-  bcd.vector[1:(0.5*length(bcd.vector))] # remove duplicates (??)
