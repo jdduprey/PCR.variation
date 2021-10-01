@@ -132,8 +132,7 @@ BOTTLE.bcd <- function(list, SampleVector){
     print(dis.mat)
 
     bcd.vector <- as.numeric(na.omit(as.vector(dis.mat))) # remove intra-bottle comparisons
-  bcd.vector <-  bcd.vector[1:(0.5*length(bcd.vector))] # remove duplicates (??)
-     bcds <- c(bcds, bcd.vector) # all unique bray curtis dists for that sample
+     bcds <- c(bcds, bcd.vector) # all bray curtis dists for that sample
   }
         
   #plot
@@ -144,7 +143,7 @@ BOTTLE.bcd <- function(list, SampleVector){
 }
 
 bottle.output <- BOTTLE.bcd(nested.props$data, nested.props$sample)
-# mean = 0.423
+# mean = 0.431
 ```
 
       
