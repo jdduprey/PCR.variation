@@ -81,5 +81,33 @@ plot.df$mean_log_prop <- prop.seq
 
 plot(plot.df$prop.seq, plot.df$prop.ag.list, xlab = 'cutoff point - log(mean proportion)', ylab = 'proportion agreement of Presence/Absence')
 ```
+The moving cutoff point is hard for me to interpret because the sample size is always going up -
+lets try binning log(mean_read_prop) instead
+
+```{r}
+# bin sequence, 24 bins to start
+bin.seq = seq(from = -13.35, to = -0.5, length.out = 25)
+print(bin.seq)
+
+nbins <- length(bin.seq) - 1
+agree.values <- vector(length=nbins)
+
+for (i in 1:nbins){
+  print(bin.seq[i])
+  print(bin.seq[i+1])
+  print('-----')
+  
+  one.bin <- PA.agree %>%
+    filter(PA.agree$log_mean_prop >= bin.seq[i] & PA.agree$log_mean_prop < bin.seq[i+1])
+  
+  bin.agreement <- sum(one.bin$agree) / nrow(one.bin)
+  agree.values[i] <- bin.agreement
+  
+  
+  
+}
+
+plot(agree.values)
+```
 
 
