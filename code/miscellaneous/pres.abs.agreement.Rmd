@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(dplyr)
+library(ggplot2)
 ```
 
 How does presence/absence agreement - consistency of presence/absence detections across PCR replicates
@@ -95,14 +96,17 @@ print(bin.seq)
 nbins <- length(bin.seq) - 1
 agree.values <- vector(length=nbins)
 bin.names <- vector(length=nbins)
+n.values <- vector(length=nbins)
 
 for (i in 1:nbins){
   print(bin.seq[i])
   print(bin.seq[i+1])
   
   # bin name
-  bin.name <- paste(toString(round(bin.seq[i],digits=3)), 
-                    toString(round(bin.seq[i+1],digits=3)), sep=' - ')
+  # bin.name <- paste(toString(round(bin.seq[i],digits=3)), 
+  #                   toString(round(bin.seq[i+1],digits=3)), sep=' - ')
+  
+  bin.name <- toString(round(mean(bin.seq[i], bin.seq[i+1]), digits=3))
   
   one.bin <- PA.agree %>%
     filter(PA.agree$log_mean_prop >= bin.seq[i] & PA.agree$log_mean_prop < bin.seq[i+1])
@@ -110,6 +114,8 @@ for (i in 1:nbins){
   bin.agreement <- sum(one.bin$agree) / nrow(one.bin)
   agree.values[i] <- bin.agreement
   bin.names[i] <- bin.name
+  n.values[i] <- nrow(one.bin)
+  
   
   # print the filtered df length for sanity check 
   print(nrow(one.bin))
@@ -119,9 +125,21 @@ for (i in 1:nbins){
   
   
 }
+```
+
+```{r}
 
 barplot(height=agree.values, names.arg=bin.names, las=3, ylab='Proportion P/A agreement', xlab='log(mean read proportion) bins', cex.main=0.5)
 
-```
 
+bar.df <- data_frame(agree.values, bin.names, n.values)
+#ggplot attempt 
+
+# options(digits=2)
+# bar.df %>% 
+#   ggplot(aes(bin.names, agree.values))+
+#   geom_col() +
+#   labs(title="Barplot with labels on bars")+
+#   geom_text(aes(label = n.values), size=4)
+```
 
