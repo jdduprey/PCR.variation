@@ -1,0 +1,75 @@
+---
+title: "pres.abs.agreement"
+author: "Helen Casendino, Joe Duprey"
+date: "10/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(dplyr)
+```
+
+How does presence/absence agreement - consistency of presence/absence detections across PCR replicates
+change as read proportion increases/decreases. Based on Kai's question.
+
+```{r}
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
+
+PA.agree <- trip.proportion.reads %>%
+  mutate(mean_prop = (PCR1_prop + PCR2_prop + PCR3_prop) / 3) %>%
+  mutate(log_mean_prop = log(mean_prop))
+
+PA.agree <- PA.agree %>%
+  mutate(
+    agree = case_when(
+      PA.agree$PCR1_prop > 0 & PA.agree$PCR2_prop > 0 & PA.agree$PCR3_prop > 0 ~ 1,
+      TRUE ~ 0)
+    )
+ 
+```
+
+Now we loop through log_mean_prop and see how the proportion that agree change
+
+
+```{r}
+print(min(PA.agree$log_mean_prop))
+print(max(PA.agree$log_mean_prop))
+
+prop.seq = seq(from = -13.35, to = -0.5, by = 0.1)
+
+sumtable <- table(PA.agree$agree)
+print(sumtable)
+
+
+# lists to store values
+#prop.cutoffs <- vector(length=length(prop.seq))
+prop.ag.list <- vector(length=length(prop.seq))
+j <- 1 
+
+for (i in prop.seq){
+  print(i)
+  
+  filtered.df <- PA.agree %>%
+    filter(PA.agree$log_mean_prop < i)
+  
+  prop.agreement <- sum(filtered.df$agree) / nrow(filtered.df)
+  prop.ag.list[j] <- prop.agreement
+  
+  print(nrow(filtered.df))
+  
+  j <- j + 1 
+  
+}
+```
+
+```{r}
+plot.df = data_frame(prop.seq, prop.ag.list)
+plot.df$mean_log_prop <- prop.seq
+
+plot(plot.df$prop.seq, plot.df$prop.ag.list, xlab = 'cutoff point - log(mean proportion)', ylab = 'proportion agreement of Presence/Absence')
+```
+
+
