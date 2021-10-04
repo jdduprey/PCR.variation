@@ -91,23 +91,34 @@ print(bin.seq)
 
 nbins <- length(bin.seq) - 1
 agree.values <- vector(length=nbins)
+bin.names <- vector(length=nbins)
 
 for (i in 1:nbins){
   print(bin.seq[i])
   print(bin.seq[i+1])
-  print('-----')
+  
+  # bin name
+  bin.name <- paste(toString(round(bin.seq[i],digits=3)), 
+                    toString(round(bin.seq[i+1],digits=3)), sep=' - ')
   
   one.bin <- PA.agree %>%
     filter(PA.agree$log_mean_prop >= bin.seq[i] & PA.agree$log_mean_prop < bin.seq[i+1])
   
   bin.agreement <- sum(one.bin$agree) / nrow(one.bin)
   agree.values[i] <- bin.agreement
+  bin.names[i] <- bin.name
   
+  # print the filtered df length for sanity check 
+  print(nrow(one.bin))
+  print(bin.agreement)
+  print('-----')
+  print(one.bin)
   
   
 }
 
-plot(agree.values)
+barplot(height=agree.values, names.arg=bin.names, las=3)
+
 ```
 
 
