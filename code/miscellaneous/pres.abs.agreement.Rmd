@@ -15,6 +15,9 @@ library(dplyr)
 How does presence/absence agreement - consistency of presence/absence detections across PCR replicates
 change as read proportion increases/decreases. Based on Kai's question.
 
+##TODO 
+add code to see what proportion have TWO detections vs ONE vs THREE
+
 ```{r}
 # load clean PCR rep data
 trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
@@ -117,7 +120,7 @@ for (i in 1:nbins){
   
 }
 
-barplot(height=agree.values, names.arg=bin.names, las=3)
+barplot(height=agree.values, names.arg=bin.names, las=3, ylab='Proportion P/A agreement', xlab='log(mean read proportion) bins', cex.main=0.5)
 
 ```
 
