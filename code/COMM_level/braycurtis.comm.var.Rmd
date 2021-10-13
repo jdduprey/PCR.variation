@@ -14,34 +14,39 @@ library(vegan)
 library(stringi)
 ```
 
-This code functions similarly to centroid.comm.var.Rmd, in that it creates distributions of variability among technical (PCR) and biological (bottle) replicates at the community level, using the OA data with triplicate PCRs. It functions differently in a few ways: 
+This code functions similarly to centroid.comm.var.Rmd in that it creates distributions of variability among technical (PCR) and biological (bottle) replicates at the community level, using the OA data with triplicate PCRs. It functions differently in a few ways: 
      
-      1) instead of calculating the distance to the centroid for each bottle or sampling event, it harvests all bray-curtis pairwise distances from the vegdist() output
-      2) For the biological replicate level (distance b/w bottles within sampling event), there is NO AVERAGING ACROSS PCRs...ie, we are collecting pairwise BC distances among A.1,A.2,A.3,B.1,B.2, etc.
-      3) To avoid tabulating intra-bottle PCR variation when looking at the bio replicate level, we will only harvest pairwise distances between communities in *different* bottles...ie, take the pairwise distance between A.1 and B.1,B.2,B.3, but not between A.1 and A.2,A.3
+      1) Instead of calculating the distance to the centroid for each bottle or sampling event, it harvests all pairwise bray-curtis distances (BCDs) from the vegdist() function's output.
+      2) For the biological replicate level (distance between bottles within sampling event), there is NO AVERAGING ACROSS PCRs (i.e., we are collecting pairwise BC distances among A.1,A.2,A.3,B.1,B.2, etc.).
+      3) To avoid tabulating intra-bottle PCR variation when looking at the biological replicate level, we will only harvest pairwise distances between communities in *different* bottles...ie, take the pairwise distance between A.1 and B.1,B.2,B.3, but not between A.1 and A.2,A.3
       
-## Step 1: Read in the data. 
+## Step 1: Read in the data
+Note that PCR.proportions.clean.csv is a data frame with the following structure:
+        bio                                     Hash    PCR1_prop    PCR2_prop  PCR3_prop
+1 CP201706A 0027eb8cc37fef2af5a828e5c7f186d1a639ec73 0.0047199782 0.0000000000 0.00000000
+2 CP201706A 00616a421c92928530cd4f6653722e00616d21e7 0.0473813198 0.0134351405 0.02373608
 
 ```{r load in data}
 trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 ```
       
 ## Step 2: PCR Variation
-Create and run function to 3 pairwise Bray-Curtis distances for 3 different PCR pairwise comparisons, by biological replicate
+Create and run a function that calculates and plots PCR pairwise BCDs by biological replicate. Our example uses 3 pairwise comparisons (by choosing pairs from among PCR1_prop, PCR2_prop, PCR3_prop).
 
 ```{r create & run function to calculate BCDs by bottle; Plot}
 # Function arguments: 
 # a) df is a data frame with columns for each PCR run and a column for bottle ID
-# b) bottles is a vector of all biological sample IDs in your dataset.
-# c) PCR.cols is vector of column indices for each PCR rxn 
-PCR.bcd <- function(df, bottles, PCR.cols){
-  bcds <-  c("start") # will hold all bray curt distances
+# b) bottles is a vector of all biological sample IDs in your data set
+# c) PCR.cols is a vector of column indices for all the PCR reactions
+PCR.bcd <- function(df, bottles, PCR.cols) {
+  bcds <- c("start") # will hold all bray curt distances (BCDs)
   
-  for(j in 1:length(bottles)){
-    bottle.hashes <- t(df[df$bio == bottles[j],PCR.cols]) # to get all PCR props from that one sample
+  for(j in 1:length(bottles)) {
+    bottle.hashes <- t(df[df$bio == bottles[j], PCR.cols]) # to get all PCR props from that one sample
+    # vegdist() requires us to take the transpose
     dis <- vegdist(bottle.hashes)
-    bcds<- c(bcds, as.vector(dis)) # takes all values of the vegdist output
-    print(j)
+    bcds <- c(bcds, as.vector(dis)) # takes all values of the vegdist output
+    # print(as.vector(dis))
   }
   # plot
    his <- hist((as.numeric(bcds[-1])), col = viridis::plasma(3,0.4,0.7), main = "PCR Variation", xlab = "Bray-Curtis Pairwise Distances")
@@ -55,7 +60,7 @@ PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio),
 ```
 
 ## Step 3: Bottle Variation
-As a reminder, we are *not* averaging across PCRs.
+As a reminder, we are NOT averaging across PCRs.
 
 ```{r data wrangling, not taking PCR mean}
 long.props <- trip.proportion.reads %>% 
