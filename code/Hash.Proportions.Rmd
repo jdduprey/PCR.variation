@@ -61,7 +61,7 @@ PCR.proportions <- by.tech.table %>%
   filter(bio %in% three_reps$bio) %>% # only take bio reps with three PCR reps
   group_by(bio, tech) %>% # removed Miseq_run from group_by() i think this will solve our duplicate hash problem -joe   
   mutate(PropRead = nReads/sum(nReads)) %>%
-  select(bio, tech, Hash, PropRead) %>%
+  select(bio, tech, Hash, PropRead) %>% # 10/13/2021 MISEQ RUN - ASK HELEN/RYAN  
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
