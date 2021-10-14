@@ -16,8 +16,8 @@ library(stringi)
 
 This code functions similarly to centroid.comm.var.Rmd, in that it creates distributions of variability among technical (PCR) and biological (bottle) replicates at the community level, using the OA data with triplicate PCRs. It functions differently in a few ways: 
      
-      1) instead of caculating the distance to the centroid for each bottle or sampling event, it harvests all bray-curtis pairwise distances from the vegdist() output
-      2) For the biological replicate level (distance b/w bottles within sampling event), there is no averaging across PCRs...ie, we are collecting pairwise BC distances among A.1,A.2,A.3,B.1,B.2, etc.
+      1) instead of calculating the distance to the centroid for each bottle or sampling event, it harvests all bray-curtis pairwise distances from the vegdist() output
+      2) For the biological replicate level (distance b/w bottles within sampling event), there is NO AVERAGING ACROSS PCRs...ie, we are collecting pairwise BC distances among A.1,A.2,A.3,B.1,B.2, etc.
       3) To avoid tabulating intra-bottle PCR variation when looking at the bio replicate level, we will only harvest pairwise distances between communities in *different* bottles...ie, take the pairwise distance between A.1 and B.1,B.2,B.3, but not between A.1 and A.2,A.3
       
 ## Step 1: Read in the data. 
@@ -30,7 +30,7 @@ trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
 Create and run function to 3 pairwise Bray-Curtis distances for 3 different PCR pairwise comparisons, by biological replicate
 
 ```{r create & run function to calculate BCDs by bottle; Plot}
-# Function calls: 
+# Function arguments: 
 # a) df is a data frame with columns for each PCR run and a column for bottle ID
 # b) bottles is a vector of all biological sample IDs in your dataset.
 # c) PCR.cols is vector of column indices for each PCR rxn 
@@ -112,6 +112,10 @@ BOTTLE.bcd <- function(list, SampleVector){
     dis <- vegdist(flip.tib) 
     dis.mat <- as.matrix(dis) 
     
+    # PRINT DISTANCE MATRICES BEFORE REMOVAL <- can remove later // joe getting up to speed
+    print(SampleVector[j])
+    print(dis.mat)
+    
     # getting rid of intra-bottle pairwise comparisons...
     # remove all cells corresponding to distances within the same bottle
     tryCatch({
@@ -123,10 +127,12 @@ BOTTLE.bcd <- function(list, SampleVector){
     dis.mat[16:ncol(dis.mat),16:18] <- NA
      if (j==j) stop("subscript out of bounds")
     }, error=function(e){})
+    
+    # PRINT DISTANCE MATRICES AFTER REMOVAL <- can remove later // joe getting up to speed
+    print(dis.mat)
 
     bcd.vector <- as.numeric(na.omit(as.vector(dis.mat))) # remove intra-bottle comparisons
-  bcd.vector <-  bcd.vector[1:(0.5*length(bcd.vector))] # remove duplicates (??)
-     bcds <- c(bcds, bcd.vector) # all unique bray curtis dists for that sample
+     bcds <- c(bcds, bcd.vector) # all bray curtis dists for that sample
   }
         
   #plot
@@ -137,7 +143,7 @@ BOTTLE.bcd <- function(list, SampleVector){
 }
 
 bottle.output <- BOTTLE.bcd(nested.props$data, nested.props$sample)
-# mean = 0.423
+# mean = 0.431
 ```
 
       
