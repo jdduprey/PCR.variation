@@ -21,7 +21,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
 
-First get raw ASV data. 
+First get raw ASV data. Note that the input data should be formatted as shown:
+  Miseq_run        sample                                     Hash nReads
+1         1 PO20170311F.1 11a112ced1c85e620f6d97d82281a1bb58614e67  17099
+2         1 LL20170311E.2 11a112ced1c85e620f6d97d82281a1bb58614e67  30337
 
 ```{r load data, create technical and bio replicate columns}
 raw.ASVs <- read.csv('../input/raw_ASVs.csv')
@@ -31,16 +34,18 @@ by.tech.table <- raw.ASVs %>%
   filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
   filter(str_detect(sample, "K+", TRUE)) %>%  # remove negative control (??) samples
   filter(str_detect(sample, "k+", TRUE)) %>% 
-  separate(col=sample, into=c('bio','tech'), sep='[.]', remove=FALSE)
- 
-by.tech.table <- by.tech.table %>% 
-  mutate(bio = gsub("_","", by.tech.table$bio)) %>% 
-  mutate(sample = gsub("_","", by.tech.table$sample))
+  separate(col = sample, into = c('bio', 'tech'), sep = '[.]', remove = FALSE)
 
+# we should combine these into the code above to avoid doing it twice
+by.tech.table <- by.tech.table %>% 
+  mutate(bio = gsub("_", "", by.tech.table$bio)) %>% 
+  mutate(sample = gsub("_", "", by.tech.table$sample))
+
+# does the following code even do anything (since we're not saving it to an object)??? also, I'm not sure the code is right bc the result is wacky
 # check for repeats 
 by.tech.table %>%
   group_by(sample, bio, tech, Hash, nReads) %>%
-  filter(n()>1)
+  filter(n() > 1)
 ```
 
 ## Triplicate proportions with low reads included
@@ -60,14 +65,14 @@ Now, we want to get the proportion of nReads for each hash (nReads of hash/total
 PCR.proportions <- by.tech.table %>%
   filter(bio %in% three_reps$bio) %>% # only take bio reps with three PCR reps
   group_by(bio, tech) %>% # removed Miseq_run from group_by() i think this will solve our duplicate hash problem -joe   
-  mutate(PropRead = nReads/sum(nReads)) %>%
+  mutate(PropRead = nReads / sum(nReads)) %>%
   select(bio, tech, Hash, PropRead) %>%
-  pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
+  pivot_wider(names_from = tech, values_from = PropRead, values_fill = 0) %>% 
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
 ```
 
-Save the new dataframe. 
+Save the new data frame. 
 
 ```{r include df in data}
 write_csv(PCR.proportions, '../data/PCR.proportions.csv')
@@ -81,7 +86,7 @@ Data frame that excludes very low reads within PCR triplicates. We'll adapt our 
 
 ```{r Fit nReads to normal dist}
 
-triplicate.data.allreads<- by.tech.table %>%
+triplicate.data.allreads <- by.tech.table %>% # why do we do this every time instead of using three_reps?
   filter(bio %in% three_reps$bio)
 
 all.nReads.sums <- triplicate.data.allreads %>%  
