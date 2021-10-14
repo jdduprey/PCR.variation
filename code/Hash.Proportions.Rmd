@@ -65,6 +65,8 @@ PCR.proportions <- by.tech.table %>%
   pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
 
+# 10/14/2021 We're back to the miseq issue - lets check that proportions sum to 1 - 
+
 ```
 
 Save the new dataframe. 
