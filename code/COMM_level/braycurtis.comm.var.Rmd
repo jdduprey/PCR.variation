@@ -53,12 +53,14 @@ PCR.bcd <- function(df, bottles, PCR.cols, nRun){
   }
   # plot
    his <- hist((as.numeric(bcds[-1])), col = viridis::plasma(3,0.4,0.7), main = "PCR Variation", xlab = "Bray-Curtis Pairwise Distances")
-  
+    
+    print('-----')
+    print(mean(as.numeric(bcds[-1]), na.rm=TRUE))
     return(as.numeric(bcds[-1])) 
     return(his)
 }
 
-PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio), 4:6, c("5"))
+PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio), 4:6, c("1","2","3","4","7","8","9"))
 # mean = 0.334
 ```
 
