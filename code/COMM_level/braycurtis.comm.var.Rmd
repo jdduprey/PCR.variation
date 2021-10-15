@@ -34,8 +34,16 @@ Create and run function to 3 pairwise Bray-Curtis distances for 3 different PCR 
 # a) df is a data frame with columns for each PCR run and a column for bottle ID
 # b) bottles is a vector of all biological sample IDs in your dataset.
 # c) PCR.cols is vector of column indices for each PCR rxn 
-PCR.bcd <- function(df, bottles, PCR.cols){
+# d) nRun a string object or vector of strings of Miseq run names
+PCR.bcd <- function(df, bottles, PCR.cols, nRun){
   bcds <-  c("start") # will hold all bray curt distances
+  
+  print(nrow(df))
+  
+  df <- df %>%
+    filter(Miseq_run %in% nRun)
+  
+  print(nrow(df))
   
   for(j in 1:length(bottles)){
     bottle.hashes <- t(df[df$bio == bottles[j],PCR.cols]) # to get all PCR props from that one sample
@@ -50,7 +58,7 @@ PCR.bcd <- function(df, bottles, PCR.cols){
     return(his)
 }
 
-PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio), 3:5)
+PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio), 4:6, c("5"))
 # mean = 0.334
 ```
 
