@@ -23,34 +23,49 @@ This code functions similarly to centroid.comm.var.Rmd, in that it creates distr
 ## Step 1: Read in the data. 
 
 ```{r load in data}
-trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
+kai_PCR_props <- read.csv("../../data/kai_PCR_props.csv")
 ```
       
 ## Step 2: PCR Variation
 Create and run function to 3 pairwise Bray-Curtis distances for 3 different PCR pairwise comparisons, by biological replicate
 
-```{r create & run function to calculate BCDs by bottle; Plot}
-# Function arguments: 
-# a) df is a data frame with columns for each PCR run and a column for bottle ID
-# b) bottles is a vector of all biological sample IDs in your dataset.
-# c) PCR.cols is vector of column indices for each PCR rxn 
-PCR.bcd <- function(df, bottles, PCR.cols){
-  bcds <-  c("start") # will hold all bray curt distances
+```{r Create and run function to calculate BCDs by bottle; Plot}
+# Computes pairwise Bray-Curtis dissimilarities among technical replicates from 
+# the same biological sample. Returns a vector of those values and a histogram.
+#
+# Args:
+#   df: A data frame with columns for bio, tech, hash, prop, and seq_run.
+#   seq_runs: A vector containing the numbers of the seq runs to be analyzed.
+PCR.bcd <- function(df, seq_runs = unique(df$seq_run)) {
+  df <- df %>% 
+    filter(seq_run %in% seq_runs) %>% 
+    select(bio, tech, hash, prop) %>%
+    pivot_wider(names_from = tech, values_from = prop, values_fill = 0)
   
-  for(j in 1:length(bottles)){
-    bottle.hashes <- t(df[df$bio == bottles[j],PCR.cols]) # to get all PCR props from that one sample
-    dis <- vegdist(bottle.hashes)
-    bcds<- c(bcds, as.vector(dis)) # takes all values of the vegdist output
-    print(j)
+  bottles <- unique(df$bio)
+  bcds <- vector(mode = "numeric", length = 3 * length(bottles))  # TODO (KAI): GENERALIZE
+  PCR_cols <- 3:5  # WILL BE GENERALIZED
+  i <- 1  # For keeping track of the bcds index where we can next add values
+  
+  for (b in bottles) {
+    hashes <- t(df[df$bio == b, PCR_cols]) # to get all PCR props from that one sample
+    dis <- vegdist(hashes)
+    bcds[i : (i + 2)] <- as.vector(dis) # takes all values of the vegdist output
+    print(i)
+    i <- i + 3  # GENERALIZE
   }
-  # plot
-   his <- hist((as.numeric(bcds[-1])), col = viridis::plasma(3,0.4,0.7), main = "PCR Variation", xlab = "Bray-Curtis Pairwise Distances")
   
-    return(as.numeric(bcds[-1])) 
-    return(his)
+  # Plot
+  his <- hist(bcds,
+              col = viridis::plasma(3, 0.4, 0.7),
+              main = "PCR Variation",
+              xlab = "Bray-Curtis Pairwise Dissimilarities")
+
+  return(bcds)
+  return(his)
 }
 
-PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio), 3:5)
+PCR.output <- PCR.bcd(kai_PCR_props, 1)  # TODO : FIGURE OUT WHAT'S UP WITH 5 AND 6 AND ALSO DIFFERNECES BTW SEQ RUNS
 # mean = 0.334
 ```
 
@@ -58,26 +73,25 @@ PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio),
 As a reminder, we are *not* averaging across PCRs.
 
 ```{r data wrangling, not taking PCR mean}
-long.props <- trip.proportion.reads %>% 
-  mutate(sample = gsub('.{1}$', '', bio)) %>% 
-  mutate(bottle = stri_sub(bio,-1)) %>% 
-  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+long.props <- kai_PCR_props %>%
+  mutate(sample = gsub(".{1}$", "", bio)) %>%
+  mutate(bottle = stri_sub(bio, -1)) %>%
+  pivot_longer(cols = c(PCR1_prop, PCR2_prop, PCR3_prop), names_to = "PCR", values_to = "Proportion")
 
-get.PCRn <- long.props %>% 
-  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
-  select(-c(bio,PCR))
+get.PCRn <- long.props %>%
+  mutate("PCRn" = stri_sub(PCR, 4, -6)) %>%
+  select(-c(bio, PCR))
 
-nested.props <- get.PCRn %>% 
-  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
-  nest(data = c(bio.PCR,Hash,Proportion))
+nested.props <- get.PCRn %>%
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>%
+  nest(data = c(bio.PCR, Hash, Proportion))
 
-for(i in 1:length(nested.props$sample)) {
-  
-  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
-    group_by(bio.PCR,Hash) %>% 
-    summarise(Proportion = mean(Proportion)) %>%  
-    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
-  
+for (i in 1:length(nested.props$sample)) {
+  nested.props$data[[i]] <- nested.props$data[[i]] %>%
+    group_by(bio.PCR, Hash) %>%
+    summarise(Proportion = mean(Proportion)) %>%
+    pivot_wider(names_from = bio.PCR, values_from = Proportion, values_fill = 0)
+
   print(i)
 }
 ```
@@ -86,60 +100,62 @@ for(i in 1:length(nested.props$sample)) {
 ```{r create & run function to calculate BCDs by sampling event; Plot}
 # list = list of data frames corresponding to each sampling event. Within each df, columns correspond to bioPCR combos (A1, B3, C2 etc) and rows correspond to each Hashes
 # SampleVector is vector of sampling events (PO20170311, etc)
-BOTTLE.bcd <- function(list, SampleVector){
+BOTTLE.bcd <- function(list, SampleVector) {
   bcds <- "start"
- 
+
   # Getting rid of samples with only one bottle
-       onebottle <- rep(NA, length=100) # we will put the "list" indices of replicates with only one bottle here
-  
-       for(i in 1:length(SampleVector)){
-         a <- list[[i]]
-          if(((ncol(a) -1)/3) == 1){ # replicates with only 1 bottle 
-           onebottle[i] <- i # save index
-             SampleVector <- SampleVector[-i] # remove index from sample vector
-  } 
+  onebottle <- rep(NA, length = 100) # we will put the "list" indices of replicates with only one bottle here
+
+  for (i in 1:length(SampleVector)) {
+    a <- list[[i]]
+    if (((ncol(a) - 1) / 3) == 1) { # replicates with only 1 bottle
+      onebottle[i] <- i # save index
+      SampleVector <- SampleVector[-i] # remove index from sample vector
+    }
   }
-        onebottle <- onebottle[!is.na(onebottle)] # remove NAs
-        list <- list[-onebottle] # remove the one bottle elements from list
-   
-  for(j in 1:length(SampleVector)){
-    
+  onebottle <- onebottle[!is.na(onebottle)] # remove NAs
+  list <- list[-onebottle] # remove the one bottle elements from list
+
+  for (j in 1:length(SampleVector)) {
     print(j)
-     
+
     df <- list[[j]]
     sub.tib <- df %>% select(!c(Hash))
     flip.tib <- t(sub.tib)
-    dis <- vegdist(flip.tib) 
-    dis.mat <- as.matrix(dis) 
-    
+    dis <- vegdist(flip.tib)
+    dis.mat <- as.matrix(dis)
+
     # PRINT DISTANCE MATRICES BEFORE REMOVAL <- can remove later // joe getting up to speed
     print(SampleVector[j])
     print(dis.mat)
-    
+
     # getting rid of intra-bottle pairwise comparisons...
     # remove all cells corresponding to distances within the same bottle
-    tryCatch({
-     dis.mat[1:ncol(dis.mat),1:3] <- NA
-    dis.mat[4:ncol(dis.mat),4:6]  <- NA
-    dis.mat[7:ncol(dis.mat),7:9] <- NA
-    dis.mat[10:ncol(dis.mat),10:12] <- NA
-    dis.mat[13:ncol(dis.mat),13:15] <- NA
-    dis.mat[16:ncol(dis.mat),16:18] <- NA
-     if (j==j) stop("subscript out of bounds")
-    }, error=function(e){})
-    
+    tryCatch(
+      {
+        dis.mat[1:ncol(dis.mat), 1:3] <- NA
+        dis.mat[4:ncol(dis.mat), 4:6] <- NA
+        dis.mat[7:ncol(dis.mat), 7:9] <- NA
+        dis.mat[10:ncol(dis.mat), 10:12] <- NA
+        dis.mat[13:ncol(dis.mat), 13:15] <- NA
+        dis.mat[16:ncol(dis.mat), 16:18] <- NA
+        if (j == j) stop("subscript out of bounds")
+      },
+      error = function(e) {}
+    )
+
     # PRINT DISTANCE MATRICES AFTER REMOVAL <- can remove later // joe getting up to speed
     print(dis.mat)
 
     bcd.vector <- as.numeric(na.omit(as.vector(dis.mat))) # remove intra-bottle comparisons
-     bcds <- c(bcds, bcd.vector) # all bray curtis dists for that sample
+    bcds <- c(bcds, bcd.vector) # all bray curtis dists for that sample
   }
-        
-  #plot
-       his <- hist((as.numeric(bcds[-1])), col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation", xlab = "Bray-Curtis Pairwise Distances")
-  
- return(as.numeric(bcds[-1])) 
- return(his)
+
+  # plot
+  his <- hist((as.numeric(bcds[-1])), col = viridis::viridis(3, 0.4, 0.7), main = "Bottle Variation", xlab = "Bray-Curtis Pairwise Distances")
+
+  return(as.numeric(bcds[-1]))
+  return(his)
 }
 
 bottle.output <- BOTTLE.bcd(nested.props$data, nested.props$sample)

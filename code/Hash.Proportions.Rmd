@@ -48,6 +48,16 @@ triplicates <- by_tech %>%
   group_by(bio) %>%
   summarise(nrep = n_distinct(bio, tech)) %>%
   filter(nrep == 3)
+
+
+# Testing a different structure here - Kai
+data <- by_tech %>% 
+  filter(bio %in% triplicates$bio) %>% 
+  group_by(bio, tech) %>% 
+  mutate(prop = reads / sum(reads)) %>% 
+  select(bio, tech, seq_run, hash, reads, prop)
+
+write_csv(data, "../data/kai_PCR_props.csv")
 ```
 
 Now, we want to get the proportion of reads for each hash (reads of hash/total reads in the bio sample for each tech rep). 
