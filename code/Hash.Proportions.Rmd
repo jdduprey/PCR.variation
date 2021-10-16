@@ -18,13 +18,13 @@ This code creates the following four csv files:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r Dependencies}
+```{r dependencies}
 library(tidyverse)
 ```
 
 First get raw ASV data. 
 
-```{r Load data and create technical and biological replicate columns}
+```{r load data and create technical and biological replicate columns}
 raw_ASVs <- read.csv("../input/raw_ASVs.csv") # ADD NOTES ABOUT REQUIRED FORMAT FOR INPUT
 
 by_tech <- raw_ASVs %>%
@@ -43,7 +43,7 @@ by_tech <- raw_ASVs %>%
 
 For now, only use samples with 3 PCR replicates. 
 
-```{r Filter in triplicates}
+```{r filter in triplicates}
 triplicates <- by_tech %>%
   group_by(bio) %>%
   summarise(nrep = n_distinct(bio, tech)) %>%
@@ -62,7 +62,7 @@ write_csv(data, "../data/kai_PCR_props.csv")
 
 Now, we want to get the proportion of reads for each hash (reads of hash/total reads in the bio sample for each tech rep). 
 
-```{r Getting hash proportions}
+```{r getting hash proportions}
 PCR_props <- by_tech %>% 
   filter(bio %in% triplicates$bio) %>% # only take bio reps with three PCR reps
   group_by(bio, tech) %>% 
@@ -74,7 +74,7 @@ PCR_props <- by_tech %>%
 
 Save the new data frame. 
 
-```{r Include df in data}
+```{r include df in data}
 write_csv(PCR_props, "../data/PCR_props.csv")
 ```
 
@@ -84,7 +84,7 @@ write_csv(PCR_props, "../data/PCR_props.csv")
 
 Data frame that excludes very low reads within PCR triplicates. We'll adapt our code from Step 2 of Moncho's (Denoising.all.runs.Rmd) in the OA paper, where reads are fit to a normal distribution and those with low reads outside of the 95% CI are removed. 
 
-```{r Fit reads to normal dist}
+```{r fit reads to normal dist}
 
 triplicate.data.allreads <- by_tech %>%
   filter(bio %in% triplicates$bio)
@@ -106,7 +106,7 @@ normparams.reads <- MASS::fitdistr(reads.per.sample, "normal")$estimate
 
 Now we'll get the PCR replicates with reads below the 95% interval and remove those from the data set. We'll create a revise proportions csv. 
 
-```{r Removing reads outside of 95% interval}
+```{r removing reads outside of 95% interval}
 all.reads.sums <- all.reads.sums %>%
   mutate(prob = pnorm(tot, normparams.reads[1], normparams.reads[2]))
 
@@ -117,7 +117,7 @@ outliers <-
 
 So taking a break here - we now have biological replicates that need one PCR replicate removed because it's read was too low. So in essence, these samples are now duplicates. We can combine these samples with our true duplicates to make a triplicate and a duplicate table. 
 
-```{r Isolate duplicates}
+```{r isolate duplicates}
 # Getting true duplicates
 two_reps <- by_tech %>%
   group_by(bio) %>%
