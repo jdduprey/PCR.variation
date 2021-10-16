@@ -60,8 +60,7 @@ PCR.bcd <- function(df, bottles, PCR.cols, nRun){
     return(his)
 }
 
-PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio), 4:6, c("1","2","3","4","7","8","9"))
-# mean = 0.334
+PCR.output <- PCR.bcd(trip.proportion.reads,  unique(trip.proportion.reads$bio), 4:6, c("1","2","3","4","7","8"))
 ```
 
 ## Step 3: Bottle Variation
@@ -94,37 +93,49 @@ for(i in 1:length(nested.props$sample)) {
 
 
 ```{r create & run function to calculate BCDs by sampling event; Plot}
-# list = list of data frames corresponding to each sampling event. Within each df, columns correspond to bioPCR combos (A1, B3, C2 etc) and rows correspond to each Hashes
-# SampleVector is vector of sampling events (PO20170311, etc)
-BOTTLE.bcd <- function(list, SampleVector){
-  bcds <- "start"
+# nestList = tibble with columns:
+#         1. nestList$Miseq_run - shows sequencing run
+#         2. nestList$sample - shows sampling event ID (ex, CP201706)
+#         3. nestList$data - list of data frames corresponding to each sampling event. Within each df, columns correspond to bioPCR combos (A1, B3, C2 etc) and rows correspond to each Hashes
+# nRun = which MiSeq runs you want to analyze
+
+BOTTLE.bcd <- function(nestList, nRun){
  
-  # Getting rid of samples with only one bottle
-       onebottle <- rep(NA, length=100) # we will put the "list" indices of replicates with only one bottle here
+  nestList <- nestList %>%
+    filter(Miseq_run %in% nRun)
   
-       for(i in 1:length(SampleVector)){
-         a <- list[[i]]
-          if(((ncol(a) -1)/3) == 1){ # replicates with only 1 bottle 
-           onebottle[i] <- i # save index
-             SampleVector <- SampleVector[-i] # remove index from sample vector
-  } 
-  }
-        onebottle <- onebottle[!is.na(onebottle)] # remove NAs
-        list <- list[-onebottle] # remove the one bottle elements from list
-   
-  for(j in 1:length(SampleVector)){
+  sampleVector  <- nestList$sample
+  sampleList <- nestList$data
+    
+  ### Getting rid of samples with only one bottle
+       onebottle <- rep(NA, length=100) # we will put the "list" indices of replicates with only one bottle here
+       for(i in 1:length(sampleVector)){
+         a <- sampleList[[i]]
+         if(((ncol(a) -1)/3) == 1){ # replicates with only 1 bottle 
+             onebottle[i] <- i # save index
+            sampleVector <- sampleVector[-i] # remove index from sample vector
+              } 
+           }
+      if(( length(which(is.na(onebottle) == F)) != 0) == T){ # basically, if there were any single bottle samples 
+         onebottle <- onebottle[!is.na(onebottle)] # remove NAs
+        sampleList <- sampleList[-onebottle] # remove the one bottle elements from list
+       }
+    
+ ### Starting analysis loop 
+  bcds <- "start"
+  for(j in 1:length(sampleVector)){
     
     print(j)
      
-    df <- list[[j]]
+    df <- sampleList[[j]]
     sub.tib <- df %>% select(!c(Hash))
     flip.tib <- t(sub.tib)
     dis <- vegdist(flip.tib) 
     dis.mat <- as.matrix(dis) 
     
     # PRINT DISTANCE MATRICES BEFORE REMOVAL <- can remove later // joe getting up to speed
-    print(SampleVector[j])
-    print(dis.mat)
+    #print(sampleVector[j])
+    #print(dis.mat)
     
     # getting rid of intra-bottle pairwise comparisons...
     # remove all cells corresponding to distances within the same bottle
@@ -139,7 +150,7 @@ BOTTLE.bcd <- function(list, SampleVector){
     }, error=function(e){})
     
     # PRINT DISTANCE MATRICES AFTER REMOVAL <- can remove later // joe getting up to speed
-    print(dis.mat)
+    #print(dis.mat)
 
     bcd.vector <- as.numeric(na.omit(as.vector(dis.mat))) # remove intra-bottle comparisons
      bcds <- c(bcds, bcd.vector) # all bray curtis dists for that sample
@@ -148,12 +159,11 @@ BOTTLE.bcd <- function(list, SampleVector){
   #plot
        his <- hist((as.numeric(bcds[-1])), col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation", xlab = "Bray-Curtis Pairwise Distances")
   
- return(as.numeric(bcds[-1])) 
+ return(as.numeric(bcds[-1]))
  return(his)
 }
 
-bottle.output <- BOTTLE.bcd(nested.props$data, nested.props$sample)
-# mean = 0.431
+bottle.output <- BOTTLE.bcd(nested.props, c("1","2","3","4","7","8"))
 ```
 
       
