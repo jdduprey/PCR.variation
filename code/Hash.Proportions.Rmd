@@ -146,7 +146,7 @@ PCR_props.clean <- true.triplicate.data %>%
   group_by(bio, hash) %>%
   summarise_at(c("PCR1_prop", "PCR2_prop", "PCR3_prop"), mean)
 
-write_csv(PCR_props.clean, "../data/PCR_props.clean.csv")
+write_csv(PCR_props.clean, "../data/PCR.proportions.clean.csv")
 # something like this to get hash proportions between bio replicates
 # PCR.by.bio.clean <- triplicate.data.clean %>%
 #   group_by(seq_run, bio, tech) %>%
