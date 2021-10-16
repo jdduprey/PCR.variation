@@ -131,7 +131,7 @@ nest_data <- function(df) {
 # those values and a histogram.
 # Args:
 #   df: A data frame with columns for bio, tech, hash, prop, and seq_run.
-find_bottle_BCDs <- function(list, SampleVector) {
+find_bottle_BCDs <- function(df) {
   df <- nest_data(df)  # Data wrangling using helper function from above
   list <- df$data  # A list of data frames corresponding to each sampling event
   # Note: Within each df, columns correspond to bio.PCR combos (in order!) and
@@ -158,7 +158,7 @@ find_bottle_BCDs <- function(list, SampleVector) {
     print(j)
 
     df <- list[[j]]
-    sub.tib <- df %>% select(!c(Hash))
+    sub.tib <- df %>% select(!c(hash))
     flip.tib <- t(sub.tib)
     dis <- vegdist(flip.tib)
     dis.mat <- as.matrix(dis)
@@ -196,7 +196,7 @@ find_bottle_BCDs <- function(list, SampleVector) {
   return(his)
 }
 
-bottle.output <- find_bottle_BCDs(nested.props$data, nested.props$sample)
+bottle.output <- find_bottle_BCDs(data)
 # mean = 0.431
 ```
 
