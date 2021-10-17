@@ -120,6 +120,11 @@ nest_data <- function(df) {
       pivot_wider(names_from = bio.PCR, values_from = prop, values_fill = 0)
   }
   
+  # Note: At this point, each item in the data column is a data frame. Within
+  # each of those data frames, columns correspond to bio.PCR combos (in order!)
+  # and rows correspond to individual hashes. This is highly relevant for our 
+  # find_bottle_BCDs function!
+  
   return(nested_data_by_site)
 }
 ```
@@ -133,59 +138,35 @@ nest_data <- function(df) {
 #   df: A data frame with columns for bio, tech, hash, prop, and seq_run.
 find_bottle_BCDs <- function(df) {
   df <- nest_data(df)  # Data wrangling using helper function from above
-  list <- df$data  # A list of data frames corresponding to each sampling event
-  # Note: Within each df, columns correspond to bio.PCR combos (in order!) and
-  # rows correspond to individual hashes
-  
-  SampleVector <- df$site  # A vector of sampling events (PO20170311, etc)
   
   bcds <- "start"
+  
+  for (j in 1:length(df$site)) {
+    hashes <- df$data[[j]]  # A data frame corresponding to one sampling event
+    sub_tib <- hashes %>% select(!c(hash))
+    flip_tib <- t(sub_tib)
+    dis <- vegdist(flip_tib)
+    dis_mat <- as.matrix(dis)
 
-  # Getting rid of samples with only one bottle
-  onebottle <- rep(NA, length = 100) # we will put the "list" indices of replicates with only one bottle here
-
-  for (i in 1:length(SampleVector)) {
-    a <- list[[i]]
-    if (((ncol(a) - 1) / 3) == 1) { # replicates with only 1 bottle
-      onebottle[i] <- i # save index
-      SampleVector <- SampleVector[-i] # remove index from sample vector
+    # Removes all cells corresponding to BCDs within the same bottle by using
+    # row and column names. Also removes all the duplicates below the diagonal.
+    for (col_num in 1:ncol(dis_mat)) {
+      # Extracting the first letter (A, B, C, etc) from the column's name
+      col_letter <- substr(colnames(dis_mat)[col_num], 1, 1)
+      for (row_num in 1:nrow(dis_mat)) {
+        # Extracting the first letter (A, B, C, etc) from the row's name
+        row_letter <- substr(rownames(dis_mat)[row_num], 1, 1)
+        if (! col_letter > row_letter) {
+          dis_mat[row_num, col_num] <- NA
+        }
+      }
     }
-  }
-  onebottle <- onebottle[!is.na(onebottle)] # remove NAs
-  list <- list[-onebottle] # remove the one bottle elements from list
-
-  for (j in 1:length(SampleVector)) {
-    print(j)
-
-    df <- list[[j]]
-    sub.tib <- df %>% select(!c(hash))
-    flip.tib <- t(sub.tib)
-    dis <- vegdist(flip.tib)
-    dis.mat <- as.matrix(dis)
-
-    # PRINT DISTANCE MATRICES BEFORE REMOVAL <- can remove later // joe getting up to speed
-    print(SampleVector[j])
-    print(dis.mat)
-
-    # getting rid of intra-bottle pairwise comparisons...
-    # remove all cells corresponding to distances within the same bottle
-    tryCatch(
-      {
-        dis.mat[1:ncol(dis.mat), 1:3] <- NA
-        dis.mat[4:ncol(dis.mat), 4:6] <- NA
-        dis.mat[7:ncol(dis.mat), 7:9] <- NA
-        dis.mat[10:ncol(dis.mat), 10:12] <- NA
-        dis.mat[13:ncol(dis.mat), 13:15] <- NA
-        dis.mat[16:ncol(dis.mat), 16:18] <- NA
-        if (j == j) stop("subscript out of bounds")
-      },
-      error = function(e) {}
-    )
+    
 
     # PRINT DISTANCE MATRICES AFTER REMOVAL <- can remove later // joe getting up to speed
-    print(dis.mat)
+    # print(dis_mat)
 
-    bcd.vector <- as.numeric(na.omit(as.vector(dis.mat))) # remove intra-bottle comparisons
+    bcd.vector <- as.numeric(na.omit(as.vector(dis_mat))) # remove intra-bottle comparisons
     bcds <- c(bcds, bcd.vector) # all bray curtis dists for that sample
   }
 
@@ -196,8 +177,7 @@ find_bottle_BCDs <- function(df) {
   return(his)
 }
 
-bottle.output <- find_bottle_BCDs(data)
-# mean = 0.431
+bottle.output <- find_bottle_BCDs(kai_PCR_props)
 ```
 
       
