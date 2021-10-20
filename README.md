@@ -8,6 +8,6 @@ Project using existing eDNA metabarcoding data to quantify variation arising fro
 2. Finds Bray-Curtis dissimilarities among technical replicates (fn: find_PCR_BCDs) and biological replicates (fn: find_bottle_BCDs) (braycurtis.comm.var.Rmd)
 3. IN PROGRESS: Quantifies ASV-level variation and the impact of rare species by fitting the proportions of each ASV across replicates to a negbin distribution and observing how variation changes with relative Hash rarity. 
 
-## Additonal Datasets to input into community level functions
+## Additonal Datasets to Input into Community Level Functions
 * [Eel Grass Halo](https://github.com/invertdna/EelgrassHalo)
 * [Puget Sound Urbanization Gradient](https://datadryad.org/stash/dataset/doi:10.5061/dryad.04tq4)
