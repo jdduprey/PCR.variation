@@ -55,10 +55,10 @@ find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all s
       pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>% 
       select(matches("\\d{1, }"))  # Columns that have numbers as names (i.e., represent PCRs)
     flipped_bottle_data <- t(bottle_data)
-    num_PCRs <- nrow(flipped_bottle_data)
+    num_PCR_pairs <- choose(nrow(flipped_bottle_data), 2)
     dis <- vegdist(flipped_bottle_data)
-    bcds[i:(i + num_PCRs - 1)] <- as.vector(dis)
-    i <- i + num_PCRs
+    bcds[i:(i + num_PCR_pairs - 1)] <- as.vector(dis)
+    i <- i + num_PCR_pairs
   }
   
   bcds <- as.numeric(na.omit(bcds))
@@ -156,7 +156,8 @@ find_bottle_BCDs <- function(df) {
   # single site
   # b) We multiply by 0.5 bc at least half the values from each dis_mat matrix
   # will be removed (to eliminate duplicates and intra-bottle comparisons)
-  bcds <- rep(NA, ceiling((max_replicates ^ 2) * 0.5 * length(df$site)))
+  bcds_upper_bound <- ceiling((max_replicates ^ 2) * 0.5 * length(df$site))
+  bcds <- rep(NA, bcds_upper_bound)
   i <- 1
   
   for (j in 1:length(df$site)) {
