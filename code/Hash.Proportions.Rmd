@@ -28,7 +28,7 @@ First get raw ASV data.
 raw_ASVs <- read.csv("../input/raw_ASVs.csv") # ADD NOTES ABOUT REQUIRED FORMAT FOR INPUT
 
 by_tech <- raw_ASVs %>%
-  rename(seq_run = Miseq_run, hash = Hash, reads = nReads) %>%  # for consistent lowercase names
+  rename(seq_run = Miseq_run, hash = Hash, reads = nReads) %>% # for consistent lowercase names
   filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
   filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
   filter(str_detect(sample, "K+", TRUE)) %>% # remove negative control (??) samples
@@ -48,28 +48,27 @@ triplicates <- by_tech %>%
   group_by(bio) %>%
   summarise(nrep = n_distinct(bio, tech)) %>%
   filter(nrep == 3)
-
-
-# Testing a different structure here - Kai
-data <- by_tech %>% 
-  filter(bio %in% triplicates$bio) %>% 
-  group_by(bio, tech) %>% 
-  mutate(prop = reads / sum(reads)) %>% 
-  select(bio, tech, seq_run, hash, reads, prop)
-
-write_csv(data, "../data/kai_PCR_props.csv")
 ```
 
 Now, we want to get the proportion of reads for each hash (reads of hash/total reads in the bio sample for each tech rep). 
 
 ```{r getting hash proportions}
-PCR_props <- by_tech %>% 
+PCR_props <- by_tech %>%
   filter(bio %in% triplicates$bio) %>% # only take bio reps with three PCR reps
-  group_by(bio, tech) %>% 
-  mutate(prop = reads / sum(reads)) %>% 
+  group_by(bio, tech) %>%
+  mutate(prop = reads / sum(reads)) %>%
   select(bio, tech, hash, prop) %>%
   pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>%
   rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
+
+
+# Testing a different structure here - Kai
+long_props <- by_tech %>%
+  group_by(bio, tech) %>%
+  mutate(prop = reads / sum(reads)) %>%
+  select(bio, tech, seq_run, hash, reads, prop)
+
+write_csv(long_props, "../data/long_PCR_props.csv")
 ```
 
 Save the new data frame. 
@@ -110,8 +109,7 @@ Now we'll get the PCR replicates with reads below the 95% interval and remove th
 all.reads.sums <- all.reads.sums %>%
   mutate(prob = pnorm(tot, normparams.reads[1], normparams.reads[2]))
 
-outliers <-
-  all.reads.sums %>%
+outliers <- all.reads.sums %>%
   filter(prob < 0.075 & tot < normparams.reads[1])
 ```
 

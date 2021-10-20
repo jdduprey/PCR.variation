@@ -24,44 +24,44 @@ This code functions similarly to centroid.comm.var.Rmd, in that it creates distr
 ## Step 1: Read in the data
 
 ```{r load in data}
-kai_PCR_props <- read.csv("../../data/kai_PCR_props.csv")
+long_props <- read.csv("../../data/long_PCR_props.csv")
 ```
       
 ## Step 2: PCR Variation
 
-We create a function that computes the pairwise Bray-Curtis dissimilarities among technical replicates within each biological sample, stores all obtained values in a numeric vector, and plots those values in histogram. Our function allows the user to specify which sequence runs should be analyzed (by default, all will be used), hence the seq_runs vector parameter. Below we also test our function on our OA data.
+We create a function that computes the pairwise Bray-Curtis dissimilarities among technical replicates within each biological sample, stores all obtained values in a numeric vector, and plots those values in histogram. Our function allows the user to specify which sequence runs should be analyzed (by default, all will be used), hence the seq_runs vector parameter. Below we apply our function to the OA data.
 
 ```{r create and run find_PCR_BCDs function}
 # Computes pairwise Bray-Curtis dissimilarities among technical replicates from 
-# each biological sample. Returns a vector of those values and a histogram.
+# each biological sample. Returns a vector of those values.
 # Args:
 #   df: A data frame with columns for bio, tech, hash, prop, and seq_run.
 #   seq_runs: A vector containing the numbers of the seq runs to be analyzed.
 find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all seq runs by default
-  
-  # Note: When we generalize this function to not require triplicates, we will
-  # initiate a list (bcds) full of NA values with length of max(df$tech) times
-  # length(bottles). Afterwards, we'll remove all NA values to get our desired
-  # vector.
-  
-  # Data wrangling in preparation for the vegdist function
   df <- df %>% 
     filter(seq_run %in% seq_runs) %>% 
-    select(bio, tech, hash, prop) %>%
-    pivot_wider(names_from = tech, values_from = prop, values_fill = 0)
+    select(bio, tech, hash, prop)
   
   bottles <- unique(df$bio)
-  bcds <- vector(mode = "numeric", length = 3 * length(bottles))  # TODO (KAI): GENERALIZE
-  PCR_cols <- 3:5  # WILL BE GENERALIZED
+  bcds_upper_bound <- choose(max(df$tech), 2) * length(bottles)
+  bcds <- rep(NA, bcds_upper_bound)  # Vector to store BCDs
   i <- 1
   
   # Iterate over each bottle and calculate BCDs among PCRs
-  for (b in bottles) {
-    hashes <- t(df[df$bio == b, PCR_cols])  # To get all props from that one bottle
-    dis <- vegdist(hashes)  # Calculate BCDs
-    bcds[i:(i + 2)] <- as.vector(dis)
-    i <- i + 3  # GENERALIZE
+  for (bottle in bottles) {
+    # Data wrangling in preparation for the vegdist function
+    bottle_data <- df %>% 
+      filter(bio == bottle) %>% 
+      pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>% 
+      select(matches("\\d{1, }"))  # Columns that have numbers as names (i.e., represent PCRs)
+    flipped_bottle_data <- t(bottle_data)
+    num_PCRs <- nrow(flipped_bottle_data)
+    dis <- vegdist(flipped_bottle_data)
+    bcds[i:(i + num_PCRs - 1)] <- as.vector(dis)
+    i <- i + num_PCRs
   }
+  
+  bcds <- as.numeric(na.omit(bcds))
   
   # Sanity check
   print("Bray-Curtis Dissimilarities:")
@@ -69,18 +69,19 @@ find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all s
   print(paste("Mean BCD value:", mean(bcds), sep = " "))
   
   # Plot
-  his <- hist(bcds,
-              col = viridis::plasma(3, 0.4, 0.7),
-              main = "PCR Variation",
-              xlab = "Pairwise Bray-Curtis Dissimilarities")
+  hist(
+    bcds,
+    col = viridis::plasma(3, 0.4, 0.7),
+    main = "PCR Variation",
+    xlab = "Pairwise Bray-Curtis Dissimilarities"
+  )
 
-  return(bcds)
-  return(his)
+  bcds
 }
 
 # Run the function with our data
 # TODO : FIGURE OUT WHAT'S UP WITH 5 AND 6 AND ALSO DIFFERNECES BETWEEN SEQ RUNS
-PCR_output <- find_PCR_BCDs(kai_PCR_props, 1)
+PCR_output <- find_PCR_BCDs(long_props, 1:4)
 ```
 
 ## Step 3: Bottle Variation
@@ -125,7 +126,7 @@ nest_data <- function(df) {
   # and rows correspond to individual hashes. This is highly relevant for our 
   # find_bottle_BCDs function!
   
-  return(nested_data_by_site)
+  nested_data_by_site
 }
 ```
 
@@ -189,17 +190,23 @@ find_bottle_BCDs <- function(df) {
 
   bcds <- as.numeric(na.omit(bcds))
   
+  # Sanity check
+  print("Bray-Curtis Dissimilarities:")
+  print(bcds)
+  print(paste("Mean BCD value:", mean(bcds), sep = " "))
+  
   # Plot
-  his <- hist(as.numeric(bcds[-1]),
-              col = viridis::viridis(3, 0.4, 0.7),
-              main = "Bottle Variation",
-              xlab = "Bray-Curtis Pairwise Distances")
+  hist(
+    as.numeric(bcds[-1]),
+    col = viridis::viridis(3, 0.4, 0.7),
+    main = "Bottle Variation",
+    xlab = "Bray-Curtis Pairwise Distances"
+  )
 
-  return(bcds)
-  return(his)
+  bcds
 }
 
-bottle_output <- find_bottle_BCDs(kai_PCR_props)
+bottle_output <- find_bottle_BCDs(long_props)
 ```
 
       
