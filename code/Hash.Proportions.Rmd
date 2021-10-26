@@ -52,17 +52,6 @@ triplicates <- by_tech %>%
 
 Now, we want to get the proportion of reads for each hash (reads of hash/total reads in the bio sample for each tech rep). 
 
-<<<<<<< HEAD
-```{r Getting Hash Proportions}
-PCR.proportions <- by.tech.table %>%
-  filter(bio %in% three_reps$bio) %>% # only take bio reps with three PCR reps
-  group_by(bio, tech, Miseq_run) %>% # removed Miseq_run from group_by() i think this will solve our duplicate hash problem -joe
-  mutate(PropRead = nReads/sum(nReads)) %>%
-  select(bio, tech, Hash, PropRead, Miseq_run) %>%
-  pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
-  rename(c("PCR1_prop" = "1", "PCR2_prop" = "2", "PCR3_prop" = "3"))
-
-=======
 ```{r getting hash proportions}
 PCR_props <- by_tech %>%
   filter(bio %in% triplicates$bio) %>% # only take bio reps with three PCR reps
@@ -146,14 +135,6 @@ We'll make the triplicate proportion table here. We also don't want duplicates a
 true.triplicate.data <- by_tech %>%
   filter(!bio %in% two_reps_full$bio)
 
-<<<<<<< HEAD
-PCR.proportions.clean <- true.triplicate.data %>%
-  group_by(bio, tech, Miseq_run) %>% 
-  mutate(PropRead = nReads/sum(nReads)) %>%
-  select(bio, tech, Hash, PropRead, Miseq_run) %>%
-  pivot_wider(names_from=tech, values_from=PropRead, values_fill=0) %>% 
-  dplyr::rename(c('PCR1_prop' = '1', 'PCR2_prop' = '2', 'PCR3_prop' = '3'))%>%    group_by(bio, Hash, Miseq_run)%>% 
-=======
 PCR_props.clean <- true.triplicate.data %>%
   group_by(bio, tech) %>% # removed seq_run 8/27 see above - joe
   mutate(prop = reads / sum(reads)) %>%
@@ -237,16 +218,6 @@ standard.props <- standard_PCRnums(duplicate.data.clean, unique(duplicate.data.c
 
 # calculate duplicate proportions
 PCR.duplic.proportions <- standard.props %>%
-<<<<<<< HEAD
-  group_by(bio, tech, Miseq_run) %>% # removed Miseq_run 8/27, see above 
-  mutate(PropRead = nReads/sum(nReads)) %>%
-  select(bio, tech, Hash, PropRead, Miseq_run) %>% 
-  pivot_wider(names_from=tech, values_from=PropRead, values_fill = 0) %>% 
-  dplyr::rename(c("PCR1_prop" = "1", "PCR2_prop" = "2")) %>% group_by(bio, Hash, Miseq_run)%>%  summarise_at(c("PCR1_prop", "PCR2_prop"), mean)
-
-write_csv(PCR.duplic.proportions, '../data/PCR.duplic.proportions.csv')
-```
-=======
   group_by(bio, tech) %>% # removed seq_run 8/27, see above
   mutate(prop = reads / sum(reads)) %>%
   select(bio, tech, hash, prop) %>%
