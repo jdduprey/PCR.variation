@@ -1,0 +1,145 @@
+---
+title: "pres.abs.agreement"
+author: "Helen Casendino, Joe Duprey"
+date: "10/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+
+How does presence/absence agreement - consistency of presence/absence detections across PCR replicates
+change as read proportion increases/decreases. Based on Kai's question.
+
+##TODO 
+add code to see what proportion have TWO detections vs ONE vs THREE
+
+```{r}
+# load clean PCR rep data
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
+
+# get mean proportion across PCR replicates, log(mean_prop) to make cutoffs easier? 
+PA.agree <- trip.proportion.reads %>%
+  mutate(mean_prop = (PCR1_prop + PCR2_prop + PCR3_prop) / 3) %>%
+  mutate(log_mean_prop = log(mean_prop))
+
+# column to mark when there are 3/3 detections/presence 
+PA.agree <- PA.agree %>%
+  mutate(
+    agree = case_when(
+      PA.agree$PCR1_prop > 0 & PA.agree$PCR2_prop > 0 & PA.agree$PCR3_prop > 0 ~ 1,
+      TRUE ~ 0) #confusing syntax but this marks all other cols as 0 
+    )
+ 
+```
+
+Now we loop through log_mean_prop and see how the proportion that agree change
+
+```{r}
+# get the min and max values 
+print(min(PA.agree$log_mean_prop))
+print(max(PA.agree$log_mean_prop))
+
+# sequence - we should probably try this without log() too to make it more interpretable? 
+prop.seq = seq(from = -13.35, to = -0.5, by = 0.1)
+
+# summary table of all rows 
+sumtable <- table(PA.agree$agree)
+print(sumtable)
+
+
+# lists to store values for plotting 
+prop.ag.list <- vector(length=length(prop.seq))
+j <- 1 
+
+# loop through cutoff points
+for (i in prop.seq){
+  print(i)
+  
+  # filter the df 
+  filtered.df <- PA.agree %>%
+    filter(PA.agree$log_mean_prop < i)
+  
+  # calculate the proportion where 3/3 agree as the log(mean_cutoff) increases 
+  prop.agreement <- sum(filtered.df$agree) / nrow(filtered.df)
+  prop.ag.list[j] <- prop.agreement # store the resulting proportion
+  
+  # print the filtered df length for sanity check 
+  print(nrow(filtered.df))
+  
+  # joe's index variable - sleeker way to do this?? 
+  j <- j + 1 
+  
+}
+```
+
+```{r}
+#plot the results
+plot.df = data_frame(prop.seq, prop.ag.list)
+plot.df$mean_log_prop <- prop.seq
+
+plot(plot.df$prop.seq, plot.df$prop.ag.list, xlab = 'cutoff point - log(mean proportion)', ylab = 'proportion agreement of Presence/Absence')
+```
+The moving cutoff point is hard for me to interpret because the sample size is always going up -
+lets try binning log(mean_read_prop) instead
+
+```{r}
+# bin sequence, 24 bins to start
+bin.seq = seq(from = -13.35, to = -0.5, length.out = 25)
+print(bin.seq)
+
+nbins <- length(bin.seq) - 1
+agree.values <- vector(length=nbins)
+bin.names <- vector(length=nbins)
+n.values <- vector(length=nbins)
+
+for (i in 1:nbins){
+  print(bin.seq[i])
+  print(bin.seq[i+1])
+  
+  # bin name
+  # bin.name <- paste(toString(round(bin.seq[i],digits=3)), 
+  #                   toString(round(bin.seq[i+1],digits=3)), sep=' - ')
+  
+  bin.name <- toString(round(mean(bin.seq[i], bin.seq[i+1]), digits=3))
+  
+  one.bin <- PA.agree %>%
+    filter(PA.agree$log_mean_prop >= bin.seq[i] & PA.agree$log_mean_prop < bin.seq[i+1])
+  
+  bin.agreement <- sum(one.bin$agree) / nrow(one.bin)
+  agree.values[i] <- bin.agreement
+  bin.names[i] <- bin.name
+  n.values[i] <- nrow(one.bin)
+  
+  
+  # print the filtered df length for sanity check 
+  print(nrow(one.bin))
+  print(bin.agreement)
+  print('-----')
+  print(one.bin)
+  
+  
+}
+```
+
+```{r}
+
+barplot(height=agree.values, names.arg=bin.names, las=3, ylab='Proportion P/A agreement', xlab='log(mean read proportion) bins', cex.main=0.5)
+
+
+bar.df <- data_frame(agree.values, bin.names, n.values)
+#ggplot attempt 
+
+# options(digits=2)
+# bar.df %>% 
+#   ggplot(aes(bin.names, agree.values))+
+#   geom_col() +
+#   labs(title="Barplot with labels on bars")+
+#   geom_text(aes(label = n.values), size=4)
+```
+

@@ -1,0 +1,154 @@
+---
+title: "Community Level PCR & Bottle Variation - Distance to Centroid"
+author: "Helen Casendino"
+date: "8/30/2021"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r Dependencies, include=FALSE}
+library(tidyverse)
+library(vegan)
+library(gridExtra)
+library(stringi)
+```
+
+## Step 1: Read in the data. 
+
+ - trip.proportion.reads = the proportions of each hash by PCR replicate (ONLY triplicate PCR samples) and biological samples with really 1 low read PCR replicate are removed
+
+```{r load in data}
+trip.proportion.reads <- read.csv('../../data/PCR.proportions.clean.csv')
+
+dup.proportion.reads <- read.csv('../../data/PCR.duplic.proportions.csv')
+```
+
+## Step 2: PCR Variation: Create and run function to get mean distance to centroid for 3 different PCR pairwise comparisons, by biological replicate
+
+```{r create & run function to calculate centroids by bottle; Plot}
+# Function calls: 
+# a) df is a data frame with columns for each PCR run and a column for bottle ID
+# b) bottles is a vector of all biological sample IDs in your dataset.
+# c) PCR.cols is vector of column indices for each PCR rxn 
+
+PCRcentroids <- function(df, bottles, PCR.cols){
+  
+  dist.Centroid <-  rep(NA, length(bottles))
+  
+  for(j in 1:length(bottles)){
+
+    bottle.hashes <- t(df[df$bio == bottles[j],PCR.cols]) # to get all PCR props from that one sample
+    dis <- vegdist(bottle.hashes)
+    grouping <- factor(rep(1,3), labels=bottles[j])
+    centroid<- betadisper(dis, group = grouping)
+    dist.Centroid[j] <- mean(centroid$distances)
+    print(j) # progress bar
+  }
+  return(dist.Centroid)
+}
+
+PCR.output <- PCRcentroids(trip.proportion.reads,  unique(trip.proportion.reads$bio), 3:5)
+
+hist(PCR.output, col = viridis::plasma(3,0.4,0.7), main = "PCR Variation", xlab = "Distance to Centroid (BC Pairwise Distances)")
+# text(0.4, 30,"mean = 0.198")
+```
+
+## Bio-PCR Centroid Distances: Bottle Variation
+
+- Extra code calculating same thing as above (distance to centroids), just loops over sampling events (not bottles). Here, we will take the average across PCR replicates for each Hash. 
+- we need to get averages of Hashes across PCRs, nest data within samples, and widen it
+
+```{r data wrangling}
+#1) Remove PCR columns (make long), Split into sample and bottle
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+#2) Get average proportion across PCRs for each bottle/hash combo
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio, PCR)) %>%
+  unite(sample, bottle, col = biorep, sep = ".", remove=FALSE) %>% 
+  group_by(biorep, Hash) %>%
+  summarise(meanprop=mean(Proportion))
+#3) separate into sample and bottle columns
+get.PCRn <-get.PCRn %>%
+  separate(col=biorep, into=c('sample','bio'), sep='[.]', remove=TRUE)
+#4) nest data
+nested.props <- get.PCRn %>% 
+  nest(data = c(bio, Hash, meanprop))
+#5) Within each sample, widen so that each column corresponds to a bottle
+for(i in 1:length(nested.props$sample)) {
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    pivot_wider(names_from = bio, values_from=meanprop, values_fill = 0) 
+    print(i)
+}
+```
+
+```{r create & run function to calculate centroids by sample; Plot}
+# list = list of data frames corresponding to each sampling event. Within each df, columns correspond to bioPCR combos (A1, B3, C2 etc) and rows correspond to each Hashes
+# SampleVector is vector of sampling events (PO20170311, etc)
+
+BOTTLEcentroids <- function(list, SampleVector){
+  
+  centroid.dists <- rep(NA, length(SampleVector))
+  
+  for(j in 1:length(SampleVector)){
+    df <- list[[j]]
+    sub.tib <- df %>% select(!c(Hash))
+    nBIOPCR <- ncol(sub.tib)
+    flip.tib <- t(sub.tib)
+    
+    dis <- vegdist(flip.tib)
+    grouping <- factor(rep(1,nBIOPCR), labels=SampleVector[j])
+    centroid<- betadisper(dis, group = grouping)
+    centroid.dists[j] <- mean(centroid$distances)
+    print(j)
+  }
+  return(centroid.dists)
+}
+
+bottle.output <- BOTTLEcentroids(nested.props$data, nested.props$sample)
+
+hist(bottle.output, col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation", xlab = "Distance to Centroid (BC Pairwise Distances)")
+# text(0.4, 12,"mean = 0.229")
+```
+
+#########
+I ALSO WANT TO SEE HOW ANSWER TO BOTTLE VARIATION CHANGES WITHOUT AVERAGING ACROSS PCRS
+###############
+
+```{r data wrangling, not taking PCR mean}
+long.props <- trip.proportion.reads %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  
+  print(i)
+}
+```
+
+```{r run BOTTLEcentroids function again}
+bottle.output.bioPCR <- BOTTLEcentroids(nested.props$data, nested.props$sample)
+hist(bottle.output.bioPCR, col = viridis::viridis(3,0.4,0.7), main = "Bottle Variation (no PCR averaging)", xlab = "Distance to Centroid (BC Pairwise Distances)")
+mean(bottle.output.bioPCR) # mean is still 0.299...so higher than the earlier bottle var estimate
+#text(0.5, 12,"mean = 0.299")
+```
+
