@@ -1,0 +1,53 @@
+---
+title: "BC_eelgrass"
+author: "Joe Duprey, Helen Casendino, Kai Vennemann"
+date: "10/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries}
+library(tidyverse)
+library(vegan)
+library(stringi)
+source("../functions/COMM_functions.R")
+```
+
+```{r import eelgrass data}
+eelgrass_rawreads <-read_csv("../../input/eelgrass_halo/ASV_table_r5.csv")
+```
+```{r}
+# first some data standardization YAY!!! 
+eel_long_props <- eelgrass_rawreads %>%
+  separate(col = sample, into = c("str1","str2","day","month","tech","seq_run"), sep = "_") %>%
+  unite(col = "bio", "str1":"month", sep = "_") %>%
+  mutate(seq_run = gsub("r", "", seq_run)) %>%
+  mutate(tech = case_when(
+    tech == "A" ~ 1,
+    tech == "B" ~ 2,
+    tech == "C" ~ 3
+   ))
+
+eel_long_props$seq_run <- as.numeric(eel_long_props$seq_run)
+
+print(unique(eel_long_props$tech))
+
+eel_long_props <- eel_long_props %>%
+  group_by(bio, tech) %>%
+  mutate(prop = nReads / sum(nReads))
+
+eel_long_props <- rename(eel_long_props, reads = nReads)
+eel_long_props <- rename(eel_long_props, hash = Hash )
+
+#eel_long_props <- eel_long_props[-(1:36),]
+```
+
+```{r}
+# call the function! 
+eel_PCR_output <- find_PCR_BCDs(eel_long_props)
+```
+
