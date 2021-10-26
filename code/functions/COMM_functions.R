@@ -10,6 +10,7 @@
 #   seq_runs: A vector containing the numbers of the seq runs to be analyzed.
 find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all seq runs by default
   df <- df %>% 
+    ungroup() %>% 
     filter(seq_run %in% seq_runs) %>% 
     select(bio, tech, hash, prop)
   
