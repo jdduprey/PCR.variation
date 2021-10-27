@@ -7,8 +7,8 @@ This project analyzes existing eDNA metabarcoding data to quantify variation ari
  
 
 ## Progress
-1. Starting with ASV hash table scripts, filters out seriously low read PCR replicates and convert read data to proportional data (Hash.Proportions.Rmd)
-2. Finds Bray-Curtis dissimilarities among technical replicates (fn: find_PCR_BCDs) and biological replicates (fn: find_bottle_BCDs) (braycurtis.comm.var.Rmd)
+1. Starting with ASV hash table scripts, filters out seriously low read PCR replicates and convert read data to proportional data `Hash.Proportions.Rmd`
+2. Finds Bray-Curtis dissimilarities among technical replicates `find_PCR_BCDs()` and biological replicates `find_bottle_BCDs()` in `braycurtis.comm.var.Rmd`
 3. IN PROGRESS: Quantifies ASV-level variation and the impact of rare species by fitting the proportions of each ASV across replicates to a negbin distribution and observing how variation changes with relative Hash rarity. 
 
 ## Additonal Datasets to Input into Community Level Functions
