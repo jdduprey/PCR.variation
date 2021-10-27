@@ -47,13 +47,15 @@ getNB <- function(x){
   )
 } # estimates mu and phi
 
-
 # Below: estimates parameters for each Hash (2-3 PCR reads/Hash)
 # nested_df needs cols: Miseq_run, bio (bottle, ie PO2017A), Hash, and nReads
+# spits out list of: 
+      # 1) df of mu, estimated variance and phi, 
+#   and 2) plot of mu vs. estimated variance and mu vs. phi
 
 estimates_pars_byHash <- function(df){
   
-  df_NBpars <- df %>% 
+  list_NBpars <- df %>% 
     filter(bio %in% unique(df$bio)) %>% 
     group_by(bio, Hash) %>% 
     filter(sum(nReads)>0) %>%
@@ -62,35 +64,29 @@ estimates_pars_byHash <- function(df){
     nest() %>%
     mutate(mlmodels = map(data,getNB))
   
-  # graphs mu vs. variance, and mu vs. phi
-  return( c(  
-    
-    (df_NBpars$mlmodels %>% 
+  df_NBpars <- list_NBpars$mlmodels %>%  
     as.data.frame() %>% 
     t() %>% as_tibble() %>% 
     rename(phi = size) %>% 
     mutate(estVariance = varNB(mu, phi)) %>% 
-    pivot_longer(-mu) %>% 
+    pivot_longer(-mu)
+
+  NBpars_plot <- df_NBpars %>% 
     ggplot(aes(x = log(mu), y = log(value))) +
     geom_point() +
-    facet_wrap(~name)),
-    
-    df_NBpars))
+    facet_wrap(~name)
+  
+  return(list(df_NBpars, NBpars_plot))
 }
 
 NB_ouput <- estimates_pars_byHash(reads_long)
 
+
+
 # Helen: If the curve of mu vs. variance is dependent on phi, we also want to 
 # keep track of the slope of mu vs. variance, to compare to the slope of other kinds of replicates?
-# Below is just best fit line to mu vs. variance curve...there's a better way of doing this, but it's here for now.
+# Below is just best fit line to mu vs. variance curve....there's a better way of doing this....fitting to a different dist...
 
-NB_ouput$mlmodels %>% 
-  as.data.frame() %>% 
-  t() %>% as_tibble() %>% 
-  rename(phi = size) %>% 
-  mutate(estVariance = varNB(mu, phi)) %>% ggplot(aes(x = log(mu), y = log(estVariance))) +
-  geom_point() +
-  geom_smooth(method='lm') + 
-  stat_regline_equation(label.x = 2, label.y = 20)
-
+# a <- NB_ouput[[1]] %>% pivot_wider(names_from = name )
+# summary(lm(data = a, estVariance ~ mu))
   
