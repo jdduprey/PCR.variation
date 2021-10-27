@@ -131,4 +131,45 @@ find_bottle_BCDs <- function(df) {
   bcds
 }
 
-bottle_output <- find_bottle_BCDs(long_props)
+# ==========================================================================
+# ==========================================================================
+
+# A helper function for data wrangling. Prepares a data frame for the
+# find_bottle_BCDs function by nesting the data by site.
+# Args:
+#   df: A data frame with columns for bio, tech, hash, prop
+nest_data <- function(df) {
+  nested_data_by_site <- df %>% 
+    ungroup() %>%  # TODO : DELETE LINE ONCE I'M DONE TESTING
+    mutate(site = gsub(".{1}$", "", bio)) %>%  # Separate site and bottle info from each other
+    mutate(bottle = stri_sub(bio, -1)) %>% 
+    select(site, bottle, tech, hash, prop) %>% 
+    unite(bottle, tech, col = "bio.PCR", sep = ".") %>%  # Combine to get A.1, A.2, etc.
+    arrange(site, bio.PCR, hash) %>% 
+    nest(data = c(bio.PCR, hash, prop))
+  
+  # At this point, nested_data_by_site has the following structure:
+  #   site       data           
+  #   <chr>      <list>              
+  # 1 PO20170311 <tibble [1,824 × 3]>
+  # 2 LL20170311 <tibble [1,670 × 3]>  
+  
+  # Each element of site_data looks like this:
+  #   bio.PCR hash                                      prop
+  #   <chr>   <chr>                                    <dbl>
+  # 1 F.1     11a112ced1c85e620f6d97d82281a1bb58614e67 0.262
+  # 2 A.3     11a112ced1c85e620f6d97d82281a1bb58614e67 0.363
+  
+  # Change columns to: hash, A.1, A.2, A.3, B.1, B.2, etc.
+  for (i in 1:length(nested_data_by_site$data)) {
+    nested_data_by_site$data[[i]] <- nested_data_by_site$data[[i]] %>%
+      pivot_wider(names_from = bio.PCR, values_from = prop, values_fill = 0)
+  }
+  
+  # Note: At this point, each item in the data column is a data frame. Within
+  # each of those data frames, columns correspond to bio.PCR combos (in order!)
+  # and rows correspond to individual hashes. This is highly relevant for our 
+  # find_bottle_BCDs function!
+  
+  nested_data_by_site
+}

@@ -51,4 +51,7 @@ eel_long_props <- ungroup(eel_long_props)
 # call the function! 
 eel_PCR_output <- find_PCR_BCDs(eel_long_props)
 ```
+```{r}
+find_bottle_BCDs(eel_long_props)
+```
 

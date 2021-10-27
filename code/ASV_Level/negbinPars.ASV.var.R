@@ -12,7 +12,7 @@ library(ggpubr)
 #===============
 
 #####=======READ IN DATA====
-raw.ASVs <- read.csv('.../input/raw_ASVs.csv')
+raw.ASVs <- read.csv('../../input/raw_ASVs.csv')
 
 reads_long <- raw.ASVs %>%
   filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
