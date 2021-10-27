@@ -12,7 +12,7 @@ library(ggpubr)
 #===============
 
 #####=======READ IN DATA====
-raw.ASVs <- read.csv('../../input/raw_ASVs.csv')
+raw.ASVs <- read.csv(here("input/raw_ASVs.csv"))
 
 reads_long <- raw.ASVs %>%
   filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
@@ -76,7 +76,12 @@ estimates_pars_byHash <- function(df){
     geom_point() +
     facet_wrap(~name)
   
-  return(list(df_NBpars, NBpars_plot))
+  ### Just exploratory (adds list of original 3 reads to df_NBpars) - Helen 
+  # df_NBpars_reads <- df_NBpars %>% 
+  #  pivot_wider(names_from = name) %>% 
+  #  mutate(Reads = list_NBpars$data)
+  
+  return(list(df_NBpars, df_NBpars_reads, NBpars_plot))
 }
 
 NB_ouput <- estimates_pars_byHash(reads_long)
