@@ -9,6 +9,7 @@ library(tidyverse)
 library(stringi)
 library(fitdistrplus)
 library(ggpubr)
+library(here)
 #===============
 
 #####=======READ IN DATA====
@@ -34,7 +35,7 @@ reads_long <- reads_long %>%
 # Second to use fitdist() to find the most likely parameters mu and phi (which R calls "size" in this case), given some data vector. 
 # Then the tidyr code takes a dataset (here, called dat.mifish, but you can use your dataset), groups by species (ID_mifish) and biological sample (station_id),
 # and then fits a negative binomial distribution  to each vector of 3 observations for each species at each site. 
-# Then it plots the result." - Ryan
+# Then it plots the result."
 
 varNB <- function(mu, phi){ # calculates variance
   mu + ((mu^2)/phi)
@@ -90,7 +91,6 @@ NB_ouput <- estimates_pars_byHash(reads_long)
 
 # Helen: If the curve of mu vs. variance is dependent on phi, we also want to 
 # keep track of the slope of mu vs. variance, to compare to the slope of other kinds of replicates?
-# Below is just best fit line to mu vs. variance curve....there's a better way of doing this....fitting to a different dist...
 
 # a <- NB_ouput[[1]] %>% pivot_wider(names_from = name )
 # summary(lm(data = a, estVariance ~ mu))
