@@ -1,11 +1,10 @@
 # Technical & Biological Variation
 
-Project using existing eDNA metabarcoding data to quantify variation arising from technical and biological processes. We use metabarcoding data from: 
+This project analyzes existing eDNA metabarcoding data to quantify variation arising from technical and biological processes. We use metabarcoding data from: 
 
- * [Hood Canal eDNA data](https://github.com/ramongallego/eDNA.and.Ocean.Acidification.Gallego.et.al.2020)
-  * Gallego 2020
- * [Eel Grass Halo data](https://github.com/invertdna/EelgrassHalo)
-  * Jacobs-Palmer 2020 
+ * [Hood Canal eDNA data](https://github.com/ramongallego/eDNA.and.Ocean.Acidification.Gallego.et.al.2020) - Gallego 2020
+ * [Eel Grass Halo data](https://github.com/invertdna/EelgrassHalo) - Jacobs-Palmer 2020 
+ 
 
 ## Progress
 1. Starting with ASV hash table scripts, filters out seriously low read PCR replicates and convert read data to proportional data (Hash.Proportions.Rmd)
