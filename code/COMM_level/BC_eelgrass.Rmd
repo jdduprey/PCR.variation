@@ -41,7 +41,8 @@ eel_long_props <- eel_long_props %>%
   mutate(prop = nReads / sum(nReads))
 
 eel_long_props <- rename(eel_long_props, reads = nReads)
-eel_long_props <- rename(eel_long_props, hash = Hash )
+eel_long_props <- rename(eel_long_props, hash = Hash)
+eel_long_props <- ungroup(eel_long_props)
 
 #eel_long_props <- eel_long_props[-(1:36),]
 ```
