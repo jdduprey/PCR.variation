@@ -34,9 +34,12 @@ by_tech <- raw_ASVs %>%
   filter(str_detect(sample, "K+", TRUE)) %>% # remove negative control (??) samples
   filter(str_detect(sample, "k+", TRUE)) %>%
   mutate(sample = gsub("_", "", sample)) %>% # for consistency across sample names
-  separate(col = sample, into = c("bio", "tech"), sep = "[.]", remove = FALSE) %>% # WHY DON'T WE REMOVE?
-  group_by(sample, bio, tech, hash, reads) %>% # eliminate duplicates
-  filter(n() == 1) # THIS SHOULD BE EQUALS, RIGHT?
+  separate(col = sample, into = c("bio", "tech"), sep = "[.]", remove = FALSE)
+
+# Check for repeats
+by_tech %>%
+  group_by(sample, bio, tech, hash, reads) %>%
+  filter(n() > 1)
 ```
 
 ## Triplicate proportions with low reads included
