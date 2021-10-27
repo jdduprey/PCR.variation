@@ -27,7 +27,6 @@ find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all s
       pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>% 
       select(matches("\\d{1, }"))  # Columns that have numbers as names (i.e., represent PCRs)
     flipped_bottle_data <- t(bottle_data)
-    print(flipped_bottle_data)
     num_PCR_pairs <- choose(nrow(flipped_bottle_data), 2)
     dis <- vegdist(flipped_bottle_data)
     bcds[i:(i + num_PCR_pairs - 1)] <- as.vector(dis)
