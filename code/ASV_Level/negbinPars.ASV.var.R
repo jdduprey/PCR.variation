@@ -1,7 +1,7 @@
 #####=====ASV variation using Negative Binomial Parameters=======
 # Uses Ryan's code to fit PCR reads for each ASV (usually 3) to a negbin distribution,
 # and estimating mu and phi
-# 10/25/21
+# 10/28/21
 #####===================================================
 
 ###==Dependencies====
@@ -37,7 +37,7 @@ reads_long <- reads_long %>%
 # and then fits a negative binomial distribution  to each vector of 3 observations for each species at each site. 
 # Then it plots the result."
 
-varNB <- function(mu, phi){ # calculates variance
+varNB <- function(mu, phi){ 
   mu + ((mu^2)/phi)
 } # calculates variance
 getNB <- function(x){
@@ -56,7 +56,7 @@ getNB <- function(x){
 
 estimates_pars_byHash <- function(df){
   
-  list_NBpars <- df %>% 
+  list_NBpars <- df %>%  # 25681 rows
     filter(bio %in% unique(df$bio)) %>% 
     group_by(bio, Hash) %>% 
     filter(sum(nReads)>0) %>%
@@ -65,33 +65,25 @@ estimates_pars_byHash <- function(df){
     nest() %>%
     mutate(mlmodels = map(data,getNB))
   
-  df_NBpars <- list_NBpars$mlmodels %>%  
+  df_NBpars <- list_NBpars$mlmodels %>%   # 51,362 (51,362/2 = 25681)
     as.data.frame() %>% 
     t() %>% as_tibble() %>% 
     rename(phi = size) %>% 
-    mutate(estVariance = varNB(mu, phi)) %>% 
-    pivot_longer(-mu)
+    mutate(estVariance = varNB(mu, phi)) %>%
+    mutate(Reads = list_NBpars$data) %>%
+    pivot_longer(-c(mu, Reads))
 
   NBpars_plot <- df_NBpars %>% 
     ggplot(aes(x = log(mu), y = log(value))) +
     geom_point() +
     facet_wrap(~name)
-  
-  ### Just exploratory (adds list of original 3 reads to df_NBpars) - Helen 
-  # df_NBpars_reads <- df_NBpars %>% 
-  #  pivot_wider(names_from = name) %>% 
-  #  mutate(Reads = list_NBpars$data)
-  
-  return(list(df_NBpars, df_NBpars_reads, NBpars_plot))
+
+  return(list(df_NBpars, NBpars_plot))
 }
 
 NB_ouput <- estimates_pars_byHash(reads_long)
 
 
-
 # Helen: If the curve of mu vs. variance is dependent on phi, we also want to 
 # keep track of the slope of mu vs. variance, to compare to the slope of other kinds of replicates?
-
-# a <- NB_ouput[[1]] %>% pivot_wider(names_from = name )
-# summary(lm(data = a, estVariance ~ mu))
   
