@@ -15,17 +15,18 @@ library(here)
 #####=======READ IN DATA====
 raw.ASVs <- read.csv(here("input/raw_ASVs.csv"))
 
-reads_long <- raw.ASVs %>%
+reads_qc <- raw.ASVs %>%
   filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
   filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
   filter(str_detect(sample, "K+", TRUE)) %>%  # remove negative control (??) samples
   filter(str_detect(sample, "k+", TRUE)) %>% 
   separate(col = sample, into = c('bio', 'tech'), sep = '[.]', remove = FALSE) 
 
-# Standardizing 
-reads_long <- reads_long %>% 
+# Standardizing, removing tech designation from sample col 
+reads_long <- reads_qc %>% 
   mutate(bio = gsub("_", "", reads_long$bio)) %>% 
-  mutate(sample = gsub("_", "", reads_long$sample))
+  mutate(sample = gsub("_", "", reads_long$sample))%>% 
+  mutate(sample = gsub('.{3}$', '', reads_long$sample))
 
 
 ###======Ryan's code, updated for Hood Canal Data===========
@@ -49,16 +50,28 @@ getNB <- function(x){
 } # estimates mu and phi
 
 # Below: estimates parameters for each Hash (2-3 PCR reads/Hash)
-# nested_df needs cols: Miseq_run, bio (bottle, ie PO2017A), Hash, and nReads
+# df needs cols: Miseq_run, bio (bottle, ie PO2017A), Hash, and nReads
+# rep_type is either "technical" for PCR variation or "biological" for bottle var
 # spits out list of: 
-      # 1) df of mu, estimated variance and phi, 
+      # 1) df of mu, estimated variance and phi, and original reads for each ASV 
 #   and 2) plot of mu vs. estimated variance and mu vs. phi
 
-estimates_pars_byHash <- function(df){
+
+estimates_pars_byHash <- function(df, rep_type){
   
-  list_NBpars <- df %>%  # 25681 rows
+  if(rep_type == "technical"){
+  grouping_df <- df %>%  # 25681 rows
     filter(bio %in% unique(df$bio)) %>% 
-    group_by(bio, Hash) %>% 
+    group_by(bio, Hash) 
+  }
+  
+  if(rep_type == "biological"){
+    grouping_df <- df %>%  # 25681 rows
+      filter(sample %in% unique(df$sample)) %>% 
+      group_by(sample, Hash) 
+  }
+  
+  list_NBpars <- grouping_df %>% 
     filter(sum(nReads)>0) %>%
     filter(n() > 1) %>%
     dplyr::select(nReads) %>% 
@@ -81,7 +94,7 @@ estimates_pars_byHash <- function(df){
   return(list(df_NBpars, NBpars_plot))
 }
 
-NB_ouput <- estimates_pars_byHash(reads_long)
+NB_ouput <- estimates_pars_byHash(reads_long, rep_type = "biological")
 
 
 # Helen: If the curve of mu vs. variance is dependent on phi, we also want to 
