@@ -60,13 +60,13 @@ getNB <- function(x){
 estimates_pars_byHash <- function(df, rep_type){
   
   if(rep_type == "technical"){
-  grouping_df <- df %>%  # 25681 rows
+  grouping_df <- df %>%  
     filter(bio %in% unique(df$bio)) %>% 
     group_by(bio, Hash) 
   }
   
   if(rep_type == "biological"){
-    grouping_df <- df %>%  # 25681 rows
+    grouping_df <- df %>%  
       filter(sample %in% unique(df$sample)) %>% 
       group_by(sample, Hash) 
   }
@@ -78,7 +78,7 @@ estimates_pars_byHash <- function(df, rep_type){
     nest() %>%
     mutate(mlmodels = map(data,getNB))
   
-  df_NBpars <- list_NBpars$mlmodels %>%   # 51,362 (51,362/2 = 25681)
+  df_NBpars <- list_NBpars$mlmodels %>% 
     as.data.frame() %>% 
     t() %>% as_tibble() %>% 
     rename(phi = size) %>% 
