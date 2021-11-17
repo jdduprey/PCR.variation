@@ -24,9 +24,9 @@ reads_qc <- raw.ASVs %>%
 
 # Standardizing, removing tech designation from sample col 
 reads_long <- reads_qc %>% 
-  mutate(bio = gsub("_", "", reads_long$bio)) %>% 
-  mutate(sample = gsub("_", "", reads_long$sample))%>% 
-  mutate(sample = gsub('.{3}$', '', reads_long$sample))
+  mutate(bio = gsub("_", "", reads_qc$bio)) %>% 
+  mutate(sample = gsub("_", "", reads_qc$sample))%>% 
+  mutate(sample = gsub('.{3}$', '', reads_qc$sample))
 
 
 ###======Ryan's code, updated for Hood Canal Data===========
