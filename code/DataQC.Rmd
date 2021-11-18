@@ -23,7 +23,7 @@ library(tidyverse)
 ## STEP 1: load raw ASV data. 
 
 ```{r load data and create technical and biological replicate columns}
-raw_ASVs <- read.csv("../input/raw_ASVs.csv") # ADD NOTES ABOUT REQUIRED FORMAT FOR INPUT
+raw_ASVs <- read_csv("../input/raw_ASVs.csv") # ADD NOTES ABOUT REQUIRED FORMAT FOR INPUT
 
 by_tech <- raw_ASVs %>%
   rename(seq_run = Miseq_run, hash = Hash, reads = nReads) %>% # for consistent lowercase names

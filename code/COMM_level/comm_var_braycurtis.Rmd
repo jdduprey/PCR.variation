@@ -24,7 +24,7 @@ This code functions similarly to centroid.comm.var.Rmd, in that it creates distr
 ## Step 1: Read in the data
 
 ```{r load in data}
-long_props <- read.csv("../../data/long_PCR_props.csv")
+long_props <- read_csv("../../data/long_PCR_props.csv")
 ```
       
 ## Step 2: PCR Variation
@@ -39,9 +39,9 @@ We create a function that computes the pairwise Bray-Curtis dissimilarities amon
 #   seq_runs: A vector containing the numbers of the seq runs to be analyzed.
 find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all seq runs by default
   df <- df %>% 
-    ungroup()  # Just in case
+    ungroup() %>%  # Just in case
     filter(seq_run %in% seq_runs) %>% 
-    select(bio, tech, hash, prop)
+    dplyr::select(bio, tech, hash, prop)
   
   bottles <- unique(df$bio)
   bcds_upper_bound <- choose(max(df$tech), 2) * length(bottles)
@@ -54,7 +54,7 @@ find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all s
     bottle_data <- df %>% 
       filter(bio == bottle) %>% 
       pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>% 
-      select(matches("\\d{1, }"))  # Columns that have numbers as names (i.e., represent PCRs)
+      dplyr::select(matches("\\d{1, }"))  # Columns that have numbers as names (i.e., represent PCRs)
     flipped_bottle_data <- t(bottle_data)
     num_PCR_pairs <- choose(nrow(flipped_bottle_data), 2)
     dis <- vegdist(flipped_bottle_data)
