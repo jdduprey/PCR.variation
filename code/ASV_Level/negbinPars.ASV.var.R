@@ -66,7 +66,7 @@ estimates_pars_byHash <- function(df, rep_type) {
 
   if (rep_type == "biological") {
     grouping_df <- df %>%
-      filter(sample %in% unique(df$sample)) %>%  # WHAT IS THIS LINE DOING?
+      filter(sample %in% unique(df$sample)) %>% # WHAT IS THIS LINE DOING?
       group_by(sample, Hash)
   }
 
