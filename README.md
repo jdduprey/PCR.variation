@@ -1,4 +1,4 @@
-# Technical & Biological Variation
+# Technical & Biological Variation in eDNA Metabarcoding Processes 
 
 This project analyzes existing eDNA metabarcoding data to quantify variation arising from technical and biological processes. We use metabarcoding data from: 
 
