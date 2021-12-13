@@ -1,0 +1,92 @@
+---
+title: "Calculate hash proportions within samples"
+author: "Joe Duprey, Helen Casendino, Ramon Gallego"
+date: "10/26/2021"
+output: html_document
+---
+
+# Overview
+This code creates the following four csv files: 
+  1) long_PCR_props.csv. This code calculates the proportions for each hash within all PCR reps. 
+  2) long_trip_PCR_props.csv. This code calculates the proportions for each hash within a PCR triplicate without removing PCR replicates with low reads.
+  3) clean_trip_PCR_props.csv. This code calculates the proportions for each hash within a PCR triplicate AFTER removing PCR replicates with low reads.
+  4) clean_dup_PCR_props.csv. This code calculates the proportions for each hash within a PCR duplicate.
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r dependencies}
+library(tidyverse)
+```
+
+## STEP 1: load raw ASV data. 
+
+```{r load data and bring it into standard form}
+raw_ASVs <- read_csv("../input/raw_ASVs.csv") # ADD NOTES ABOUT REQUIRED FORMAT FOR INPUT
+
+all_data <- raw_ASVs %>%
+  rename(seq_run = Miseq_run, hash = Hash, reads = nReads) %>% # for consistent lowercase names
+  filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
+  filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
+  filter(str_detect(sample, "K+", TRUE)) %>% # remove negative control (??) samples
+  filter(str_detect(sample, "k+", TRUE)) %>%
+  mutate(sample = gsub("_", "", sample)) %>% # for consistency across sample names
+  separate(col = sample, into = c("sample", "tech"), sep = "[.]", remove = FALSE) %>% 
+  mutate(tech = as.integer(tech)) %>% 
+  mutate(site = gsub(".{1}$", "", sample)) %>%  # Separate site and bottle info from each other
+  mutate(bio = stri_sub(sample, -1)) %>% 
+  dplyr::select(seq_run, site, bio, tech, hash, reads)
+
+# Check for repeats
+repeats <- all_data %>%
+  group_by(site, bio, tech, hash, reads) %>%
+  filter(n() > 1)
+if(nrow(repeats) > 0) warning('all_data has repeats!')
+
+write_csv(all_data, "../data/all_data.csv")
+```
+
+## STEP 2: Create csv of proportional data (all replicates) . 
+
+```{r creating PCR_props.csv}
+PCR_props <- all_data %>%
+  group_by(site, bio, tech) %>%
+  mutate(prop = reads / sum(reads))
+
+write_csv(PCR_props, "../data/PCR_props.csv")
+```
+
+## STEP 3: Create csv of proportional data (low reads removed)
+
+Data frame that excludes very low reads within PCR triplicates. We'll adapt our code from Step 2 of Moncho's (Denoising.all.runs.Rmd) in the OA paper, where reads are fit to a normal distribution and those with low reads outside of the 92.5% CI are removed. 
+
+```{r fit reads to normal dist}
+reads_by_sample <- all_data %>%
+  mutate(sample = paste(site, bio, tech, sep = "")) %>% 
+  dplyr::select(sample, reads) %>% 
+  group_by(sample) %>%
+  summarise(tot = sum(reads)) # sum of reads for each PCR replicate
+
+# Visualize total read distribution
+hist(reads_by_sample$tot, breaks = 80)
+
+normparams <- MASS::fitdistr(reads_by_sample$tot, "normal")$estimate
+
+# Reads outside of 92.5% interval
+outliers <- reads_by_sample %>%
+  mutate(reads_by_sample, prob = pnorm(tot, normparams[1], normparams[2])) %>% 
+  filter(prob < 0.075 & tot < normparams[1])
+```
+
+We'll make the clean proportion table here.
+
+```{r Making triplicate prop table called clean_trip_PCR_props.csv}
+all_data_clean <- all_data %>% 
+  mutate(sample = paste(site, bio, tech, sep = "")) %>% 
+  filter(!sample %in% outliers$sample) %>%
+  dplyr::select(-sample)
+
+write_csv(PCR_props.clean, "../data/all_data_clean.csv")
+```
+

@@ -5,28 +5,99 @@ date: "10/28/2021"
 output: html_document
 ---
 
-```{r setup, include = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## ASV variation using Negative Binomial Parameters
 
+Uses Ryan's code to fit PCR reads for each ASV (usually 3) to a negative binomial distribution. Estimates values for mu and phi in the process.
 
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r dependencies}
+library(tidyverse)
+library(stringi)
+library(fitdistrplus)
+library(ggpubr)
+library(here)
 ```
 
-## Including Plots
+Read in OA data.
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r read in data}
+all_data <- read_csv(here("data/all_data.csv"))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Function to get the variance of a negbin distribution, given the parameters mu and phi.
+
+```{r create varNB function}
+varNB <- function(mu, phi) {
+  mu + ((mu^2) / phi)
+} # calculates variance
+```
+
+Function that uses fitdist() to find the most likely parameters mu and phi (which R calls "size" in this case), given some data vector.
+
+```{r create getNB function}
+getNB <- function(x) {
+  require(fitdistrplus)
+
+  return(
+    (fitdist(unlist(x), "nbinom"))$estimate
+  )
+} # estimates mu and phi
+```
+
+Then code below takes a data set, groups by species and biological sample, and then fits a negative binomial distribution to each vector of 3 observations for each species at each site. Then it plots the result.
+
+```{r create estimates_pars_byHash function, warning=FALSE}
+# Below: estimates parameters for each Hash (2-3 PCR reads/Hash)
+# df needs cols: Miseq_run, bio (bottle, ie PO2017A), Hash, and nReads
+# rep_type is either "technical" for PCR variation or "biological" for bottle var
+# spits out list of:
+# 1) df of mu, estimated variance and phi, and original reads for each ASV
+#   and 2) plot of mu vs. estimated variance and mu vs. phi
+
+
+estimates_pars_byHash <- function(df, rep_type) {
+  if (rep_type == "technical") {
+    grouping_df <- df %>%
+      mutate(bottle = paste(site, bio, sep = "_"))
+      filter(bottle %in% unique(df$bottle)) %>%
+      group_by(bottle, hash)
+  }
+
+  if (rep_type == "biological") {
+    grouping_df <- df %>%
+      filter(site %in% unique(df$site)) %>% # WHAT IS THIS LINE DOING?
+      group_by(site, hash)
+  }
+
+  list_NBpars <- grouping_df %>%
+    filter(sum(reads) > 0) %>%
+    filter(n() > 1) %>%
+    dplyr::select(reads) %>%
+    nest() %>%
+    mutate(mlmodels = map(data, getNB))
+
+  df_NBpars <- list_NBpars$mlmodels %>%
+    as.data.frame() %>%
+    t() %>%
+    as_tibble() %>%
+    rename(phi = size) %>%
+    mutate(estVariance = varNB(mu, phi)) %>%
+    mutate(Reads = list_NBpars$data) %>%
+    pivot_longer(-c(mu, Reads))
+
+  NBpars_plot <- df_NBpars %>%
+    ggplot(aes(x = log(mu), y = log(value))) +
+    geom_point() +
+    facet_wrap(~name)
+
+  return(list(df_NBpars, NBpars_plot))
+}
+
+NB_output <- estimates_pars_byHash(all_data, rep_type = "biological")
+```
+
+Helen: If the curve of mu vs. variance is dependent on phi, we also want to keep track of the slope of mu vs. variance, to compare to the slope of other kinds of replicates?
+

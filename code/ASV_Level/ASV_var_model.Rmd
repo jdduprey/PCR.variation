@@ -1,0 +1,193 @@
+---
+title: "model.ASV.level.var.Rmd"
+author: "Helen Casendino"
+date: "8/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r dependencies, include=FALSE}
+library(tidyverse)
+library(stringi)
+```
+
+# Purpose 
+This is code for a pretty straight-forward model of technical and biological variation within ASVs. 
+
+## Steps:
+ 1. Tech variability:
+      a) Each sample-bottle-Hash row (3 PCR columns) is a vector called Pobs
+      b) Phat is a vector of the same length, and each element = mean(Pobs) + rnorm(x=1, mean=0, sd=tau^2)
+      c) for each row, (sd(Pobs) - sd(Phat))^2 is calculated. For Phat values that exceed the (0,1) interval, 1e10 is added to this calculation (need to tweak this a bit).
+      d) The output of function "SSQ_func_PCR" is the sum of these squares.
+      d) optim scans over values of tau to find the variation parameter that reflects the observed spread of proportion data between PCR replicates the best.
+  
+  2. Bio variability:
+      a)Repeat above SSQ function, but variation distribution is now Normal(mean = 0, sd = tau^2 + sigma^2), instead of just tau^2
+      b) use optim with best fit value of tau to estimate best fit estimate of sigma
+  
+  3. SSQ Profile
+      a) scan across values near best fit values of sigma and tau to get a sum of squares profile 
+ 
+## Data
+
+```{r read in triplicate proportion data} 
+trip.props <- read.csv('../data/PCR.proportions.clean.csv')
+```
+
+## Step 1: Tech variation
+
+Sum of Squares function.
+
+```{r Sum of Squares for variation between technical replicates}
+SSQ_func_PCR <- function(par, df, PCRcols){
+ print(Sys.time())
+  
+  tau <- par[1] # variation parameter
+  squares <- rep(NA,length(df$Hash))
+  
+  for(j in 1:length(df$Hash)){
+  
+  Pobs <- as.numeric(df[j,PCRcols]) # corresponds to one Hash-bio-sample combination
+  Phat <- rep(NA, length(Pobs))
+
+    for(i in 1:length(Pobs)){
+          Phat[i] <- mean(Pobs) + rnorm(1, 0, tau^2) # mean across PCR replicates + variation
+    }
+  
+  if(length(which(Phat <= 0 && Phat >= 1)) == 0){
+     squares[j] <- (sd(Pobs) - sd(Phat))^2 
+  }
+ else{
+   squares[j] <- 1e10 # penalty for Phat being outside (0,1)
+ }
+  # if((j %in% seq(1, 90000, 10000)) == T){print(j)} # progress bar
+  }
+  print(Sys.time())
+  return(sum(squares))
+}
+```
+
+Optim tau estimation.
+
+```{r tau parameter estimation}
+output.PCR <- optim(par=0.02, 
+                    fn=SSQ_func_PCR, 
+                    method="BFGS", 
+                    df=trip.props, 
+                    PCRcols=c(4:6))
+# using BFGS because Nelder-Mead doesn't like one-parameter optimization
+# tau estimation: 0.03928533 (took 10 minutes)
+```
+
+So our tau estimate is 0.039. But remember, variation from the mean is drawn from a normal distribution with mean = 0 and sd = *tau squared*, meaning that the "variation distribution" has a standard deviation of 0.039^2, or 0.0015. 
+
+## Step 2: Bio variation
+
+First, we have to nest and widen the data so that bottle.PCRs are columns (A.1,A.2, B.1, etc.). This is the same code from helen.ASV.level.var.Rmd, but we can't save it as a csv because we need a nested dataframe. When it's nested by sample, we can have different column for the unique number of bio.PCRs (A.1,B.3,E.2, etc.).
+
+```{r Widen data for bio+tech rep columns}
+long.props <- trip.props %>% 
+  mutate(sample = gsub('.{1}$', '', bio)) %>% 
+  mutate(bottle = stri_sub(bio,-1)) %>% 
+  pivot_longer(cols = c(PCR1_prop,PCR2_prop,PCR3_prop), names_to = "PCR", values_to = "Proportion")
+
+get.PCRn <- long.props %>% 
+  mutate("PCRn" = stri_sub(PCR,4,-6)) %>% 
+  select(-c(bio,Miseq_run,PCR))
+
+nested.props <- get.PCRn %>% 
+  unite(bottle, PCRn, col = "bio.PCR", sep = ".") %>% 
+  nest(data = c(bio.PCR,Hash,Proportion))
+
+
+for(i in 1:length(nested.props$sample)) {
+  
+  nested.props$data[[i]] <- nested.props$data[[i]] %>% 
+    group_by(bio.PCR,Hash) %>% 
+    summarise(Proportion = mean(Proportion)) %>%  
+    pivot_wider(names_from = bio.PCR, values_from= Proportion, values_fill = 0) 
+  
+  print(i)
+}
+```
+
+Next, we will use the "MLE" of tau, with optim, to calculate the best value of the sigma paramater (bioPCR variability will be drawn from normal distribution (mean = 0, sd = tau^2 + sigma^2))
+
+```{r Sum of Squares for variation between technical & biological replicates}
+SSQ_func_bioPCR <- function(par, tau, list, nSamples){
+   print(Sys.time()) # keep track of how long optim function is taking
+  
+  sigma <- par[1] # bottle variation parameter
+    all.squares <- c("start")
+    
+    for(m in 1:nSamples){
+        df <- list[[m]]
+        repCols <- c(2:dim(list[[m]])[2]) #bio.PCR column indices
+        squares <- rep(NA,length(df$Hash))
+        
+        for(j in 1:length(df$Hash)){
+               Pobs <- as.numeric(df[j,repCols])
+               Phat <- rep(NA, length(Pobs))
+
+              for(i in 1:length(Pobs)){
+                   Phat[i] <- mean(Pobs) + rnorm(1, 0, ((tau^2) + (sigma^2)) )
+                  }
+  
+                if(length(which(Phat <= 0 && Phat >= 1)) == 0){
+                   squares[j] <- (sd(Pobs) - sd(Phat))^2 
+                      }
+                else{squares[j] <- 1e10} # penalty for Phat being outside (0,1)
+              }
+          all.squares[(length(all.squares) + 1):(length(squares) + length(all.squares))] <- squares # populates all.squares with square values of each hash across bottle+PCR in each sample 
+    }
+    print(Sys.time()) 
+    return(sum(as.numeric(all.squares[-1])))
+}
+```
+
+Run optim
+
+```{r sigma parameter estimation}
+output.bioPCR <- optim(par=0.02, fn=SSQ_func_bioPCR, method="BFGS",
+                    tau=0.03928533,
+                    list=nested.props$data, 
+                    nSamples=length(unique(nested.props$sample)))
+# 13 minutes, sigma = 0.003761089 
+```
+Sigma estimate = 0.0038 (0.0038^2 = 1.444e-05, standard deviation of variation dist)
+
+Now we need to get range of plausible values for both tau and sigma ("confidence intervals"). With tau, it shouldn't be too hard (still need to figure this out), but we can use the technical-only model to get a range of plausible values for tau that explain PCR variation. 
+
+Then, we can loop through these values, which we know represent our confidence interval for tau, then use optim with the technical-biological model to figure out what sigma best fits the model for each tau value. 
+
+```{r Function getting optimized values of sigma from plausible taus}
+SSQ_profile <- function(par, tauvec, list, nSamples){
+    pars.df <- data.frame(taus = tauvec, sigmas = rep(NA,length(tauvec)), SSQ=rep(NA,length(tauvec)) )
+  
+    for(k in 1:length(tauvec)){
+      tau <- tauvec[k]
+      output <- optim(par=par, fn=SSQ_func_bioPCR, method="BFGS",
+                    tau=tau,
+                    list=list, 
+                    nSamples=nSamples)
+      
+      pars.df[k,2:3] <- c(output$par,output$value)
+    }
+  return(pars.df)
+}
+```
+
+```{r running the function}
+output.profile <- SSQ_profile(par = 0.0038, tauvec = seq(0.02,0.04, 0.01), list=nested.props$data, nSamples=length(unique(nested.props$sample))) # don't know what tauvec should be yet
+```
+
+Now let's plot tau vs. optimized sigma values, where size of the point indicates sum of square value (large dots = large sum of square value, worse fit)
+
+```{r plot output}
+with(output.profile,symbols(x=taus, y=sigmas, circles=SSQ, inches=1/6,ann=F, bg="tan3", fg=NULL))
+title( xlab="Values of Tau", ylab="Values of Sigma")
+```
+

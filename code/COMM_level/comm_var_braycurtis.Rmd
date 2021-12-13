@@ -24,7 +24,7 @@ To avoid tabulating intra-bottle PCR variation when looking at the bio replicate
 ## Step 1: Read in the data
 
 ```{r read in data}
-PCR_props <- read_csv("../../data/long_PCR_props.csv")
+PCR_props <- read_csv("../../data/PCR_props.csv")
 ```
       
 ## Step 2: PCR Variation
