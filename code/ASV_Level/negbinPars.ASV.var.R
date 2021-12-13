@@ -41,6 +41,7 @@ reads_long <- reads_qc %>%
 varNB <- function(mu, phi) {
   mu + ((mu^2) / phi)
 } # calculates variance
+
 getNB <- function(x) {
   require(fitdistrplus)
 
@@ -61,19 +62,21 @@ estimates_pars_byHash <- function(df, rep_type) {
   if (rep_type == "technical") {
     grouping_df <- df %>%
       filter(bio %in% unique(df$bio)) %>%
-      group_by(bio, Hash)
+      group_by(bio, hash)
   }
 
   if (rep_type == "biological") {
+    df <- df %>% 
+      mutate(sample = str_sub(bio, 1, -2))
     grouping_df <- df %>%
       filter(sample %in% unique(df$sample)) %>% # WHAT IS THIS LINE DOING?
-      group_by(sample, Hash)
+      group_by(sample, hash)
   }
 
   list_NBpars <- grouping_df %>%
-    filter(sum(nReads) > 0) %>%
+    filter(sum(reads) > 0) %>%
     filter(n() > 1) %>%
-    dplyr::select(nReads) %>%
+    dplyr::select(reads) %>%
     nest() %>%
     mutate(mlmodels = map(data, getNB))
 

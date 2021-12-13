@@ -22,46 +22,52 @@ library(tidyverse)
 
 ## STEP 1: load raw ASV data. 
 
-```{r load data and create technical and biological replicate columns}
+```{r load data and bring it into standard form}
 raw_ASVs <- read_csv("../input/raw_ASVs.csv") # ADD NOTES ABOUT REQUIRED FORMAT FOR INPUT
 
-by_tech <- raw_ASVs %>%
+all_data <- raw_ASVs %>%
   rename(seq_run = Miseq_run, hash = Hash, reads = nReads) %>% # for consistent lowercase names
   filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
   filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
   filter(str_detect(sample, "K+", TRUE)) %>% # remove negative control (??) samples
   filter(str_detect(sample, "k+", TRUE)) %>%
   mutate(sample = gsub("_", "", sample)) %>% # for consistency across sample names
-  separate(col = sample, into = c("bio", "tech"), sep = "[.]", remove = FALSE)
+  separate(col = sample, into = c("sample", "tech"), sep = "[.]", remove = FALSE) %>% 
+  mutate(tech = as.integer(tech)) %>% 
+  mutate(site = str_sub(sample, 1, -2)) %>% 
+  mutate(bio = str_sub(sample, -1, -1)) %>% 
+  dplyr::select(seq_run, site, bio, tech, hash, reads)
 
 # Check for repeats
-by_tech %>%
-  group_by(sample, bio, tech, hash, reads) %>%
+repeats <- all_data %>%
+  group_by(site, bio, tech, hash, reads) %>%
   filter(n() > 1)
+if(nrow(repeats) > 0) warning('all_data has repeats!')
+
+write_csv(all_data, "../data/all_data.csv")
 ```
 
 ## STEP 2: Create csv of proportional data (all replicates) . 
 
 ```{r creating long_PCR_props.csv}
-long_props <- by_tech %>%
-  group_by(bio, tech) %>%
-  mutate(prop = reads / sum(reads)) %>% 
-  dplyr::select(-sample)
+PCR_props <- all_data %>%
+  group_by(site, bio, tech) %>%
+  mutate(prop = reads / sum(reads))
 
-write_csv(long_props, "../data/long_PCR_props.csv")
+write_csv(PCR_props, "../data/long_PCR_props.csv")
 ```
 
 ## STEP 3: Create csv of triplicate PCR proportional data (no low reads removed)
 
 ```{r filter in triplicates}
-triplicates <- by_tech %>%
+triplicates <- all_data %>%
   group_by(bio) %>%
   summarise(nrep = n_distinct(bio, tech)) %>%
   filter(nrep == 3)
 ```
 
 ```{r getting hash proportions, creating long_trip_PCR_props.csv}
-long_trip_PCR_props <- by_tech %>%
+long_trip_PCR_props <- all_data %>%
   filter(bio %in% triplicates$bio) %>% # only take bio reps with three PCR reps
   group_by(bio, tech) %>%
   mutate(prop = reads / sum(reads)) %>%
@@ -76,7 +82,7 @@ Data frame that excludes very low reads within PCR triplicates. We'll adapt our 
 
 ```{r fit reads to normal dist}
 
-triplicate.data <- by_tech %>%
+triplicate.data <- all_data %>%
   filter(bio %in% triplicates$bio)
 
 all.reads.sums <- triplicate.data %>%
@@ -120,7 +126,7 @@ Now, we also need to repeat with our duplicates! As a reminder, we also need to 
 
 ```{r isolate duplicates}
 # Getting true duplicates
-duplicates <- by_tech %>%
+duplicates <- all_data %>%
   group_by(bio) %>%
   summarise(nrep = n_distinct(bio, tech)) %>%
   filter(nrep == 2)
@@ -129,7 +135,7 @@ duplicates <- by_tech %>%
 Now we're gonna check, just to make sure, that no reads from the true duplicates are really low. 
 
 ```{r checking to make sure no dups have really low reads}
-duplicate_data <- by_tech %>%
+duplicate_data <- all_data %>%
   filter(bio %in% duplicates$bio) 
 
 all.reads.sums <- duplicate_data %>%  group_by(sample) %>%

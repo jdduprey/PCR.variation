@@ -41,18 +41,19 @@ find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all s
   df <- df %>% 
     ungroup() %>%  # Just in case
     filter(seq_run %in% seq_runs) %>% 
-    dplyr::select(bio, tech, hash, prop)
+    mutate(bottle = paste(site, bio, sep = "_")) %>% 
+    dplyr::select(bottle, tech, hash, prop)
   
-  bottles <- unique(df$bio)
+  bottles <- unique(df$bottle)
   bcds_upper_bound <- choose(max(df$tech), 2) * length(bottles)
   bcds <- rep(NA, bcds_upper_bound)  # Vector to store BCDs
   i <- 1
   
   # Iterate over each bottle and calculate BCDs among PCRs
-  for (bottle in bottles) {
+  for (b in bottles) {
     # Data wrangling in preparation for the vegdist function
     bottle_data <- df %>% 
-      filter(bio == bottle) %>% 
+      filter(bottle == b) %>% 
       pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>% 
       dplyr::select(matches("\\d{1, }"))  # Columns that have numbers as names (i.e., represent PCRs)
     flipped_bottle_data <- t(bottle_data)
@@ -82,7 +83,7 @@ find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all s
 
 # Run the function with our data
 # TODO : FIGURE OUT WHAT'S UP WITH 5 AND 6 AND ALSO DIFFERNECES BETWEEN SEQ RUNS
-PCR_output <- find_PCR_BCDs(long_props, 1:4)
+PCR_output <- find_PCR_BCDs(PCR_props)
 ```
 
 ## Step 3: Bottle Variation
