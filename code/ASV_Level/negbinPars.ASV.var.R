@@ -13,20 +13,7 @@ library(here)
 # ===============
 
 ##### =======READ IN DATA====
-raw.ASVs <- read.csv(here("input/raw_ASVs.csv"))
-
-reads_qc <- raw.ASVs %>%
-  filter(str_detect(sample, "Ostrich", TRUE)) %>% # remove ostrich samples
-  filter(str_detect(sample, "Kangaroo", TRUE)) %>% # remove kangaroo samples
-  filter(str_detect(sample, "K+", TRUE)) %>% # remove negative control (??) samples
-  filter(str_detect(sample, "k+", TRUE)) %>%
-  separate(col = sample, into = c("bio", "tech"), sep = "[.]", remove = FALSE)
-
-# Standardizing, removing tech designation from sample col
-reads_long <- reads_qc %>%
-  mutate(bio = gsub("_", "", reads_qc$bio)) %>%
-  mutate(sample = gsub("_", "", reads_qc$sample)) %>%
-  mutate(sample = gsub(".{3}$", "", reads_qc$sample))
+all_data <- read_csv(here("data/all_data.csv"))
 
 
 ### ======Ryan's code, updated for Hood Canal Data===========
@@ -61,16 +48,15 @@ getNB <- function(x) {
 estimates_pars_byHash <- function(df, rep_type) {
   if (rep_type == "technical") {
     grouping_df <- df %>%
-      filter(bio %in% unique(df$bio)) %>%
-      group_by(bio, hash)
+      mutate(bottle = paste(site, bio, sep = "_"))
+      filter(bottle %in% unique(df$bottle)) %>%
+      group_by(bottle, hash)
   }
 
   if (rep_type == "biological") {
-    df <- df %>% 
-      mutate(sample = str_sub(bio, 1, -2))
     grouping_df <- df %>%
-      filter(sample %in% unique(df$sample)) %>% # WHAT IS THIS LINE DOING?
-      group_by(sample, hash)
+      filter(site %in% unique(df$site)) %>% # WHAT IS THIS LINE DOING?
+      group_by(site, hash)
   }
 
   list_NBpars <- grouping_df %>%
@@ -97,7 +83,7 @@ estimates_pars_byHash <- function(df, rep_type) {
   return(list(df_NBpars, NBpars_plot))
 }
 
-NB_ouput <- estimates_pars_byHash(reads_long, rep_type = "biological")
+NB_ouput <- estimates_pars_byHash(all_data, rep_type = "biological")
 
 
 # Helen: If the curve of mu vs. variance is dependent on phi, we also want to

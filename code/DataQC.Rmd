@@ -34,8 +34,8 @@ all_data <- raw_ASVs %>%
   mutate(sample = gsub("_", "", sample)) %>% # for consistency across sample names
   separate(col = sample, into = c("sample", "tech"), sep = "[.]", remove = FALSE) %>% 
   mutate(tech = as.integer(tech)) %>% 
-  mutate(site = str_sub(sample, 1, -2)) %>% 
-  mutate(bio = str_sub(sample, -1, -1)) %>% 
+  mutate(site = gsub(".{1}$", "", sample)) %>%  # Separate site and bottle info from each other
+  mutate(bio = stri_sub(sample, -1)) %>% 
   dplyr::select(seq_run, site, bio, tech, hash, reads)
 
 # Check for repeats
