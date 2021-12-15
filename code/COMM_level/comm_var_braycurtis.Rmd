@@ -1,75 +1,89 @@
 ---
-title: "Community Level PCR & Bottle Variation - Bray Curtis"
+title: "Community Level PCR & Bottle Variation via Bray-Curtis"
 author: "Helen Casendino, Joe Duprey, Kai Vennemann"
 date: "9/28/2021"
 output: html_document
 ---
   
-```{r setup, include = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r dependencies, include = FALSE}
+# Community Level PCR & Bottle Variation via Bray-Curtis
+
+This code creates distributions of variability among technical (PCR) and biological (bottle) replicates at the community level using the OA data. As a metric for community variability, we apply the Bray-Curtis dissimilarity (BCD) from the vegdist() function in the vegan library.
+
+For the biological replicate level (variation between bottles within sampling event), there is no averaging across PCRs; i.e., we are collecting pairwise BC distances among A.1, A.2, A.3, B.1, B.2, etc. To avoid tabulating intra-bottle PCR variation when looking at the bio replicate level, we will only harvest pairwise distances between communities in *different* bottles, i.e., take the pairwise distance between A.1 and B.1, B.2, B.3, but not between A.1 and A.2, A.3.
+
+```{r dependencies, include=FALSE}
 library(tidyverse)
 library(vegan)
 library(stringi)
 ```
 
-This code creates distributions of variability among technical (PCR) and biological (bottle) replicates at the community level using the OA data. As a metric for community variability, we apply the Bray-Curtis dissimilarity (BCD) from the vegdist() function in the vegan library.
+## Step 1: Read in the data.
 
-For the biological replicate level (variation between bottles within sampling event), there is no averaging across PCRs; i.e., we are collecting pairwise BC distances among A.1, A.2, A.3, B.1, B.2, etc.
-
-To avoid tabulating intra-bottle PCR variation when looking at the bio replicate level, we will only harvest pairwise distances between communities in *different* bottles, i.e., take the pairwise distance between A.1 and B.1, B.2, B.3, but not between A.1 and A.2, A.3.
-      
-## Step 1: Read in the data
+We use our OA data.
 
 ```{r read in data}
-PCR_props <- read_csv("../../data/PCR_props.csv")
+all_data <- read_csv("../../data/all_data.csv")
 ```
-      
-## Step 2: PCR Variation
 
-We create a function that computes the pairwise Bray-Curtis dissimilarities among technical replicates within each biological sample, stores all obtained values in a numeric vector, and plots those values in a histogram. Our function allows the user to specify which sequence runs should be analyzed (by default, all will be used), hence the seq_runs vector parameter. Below we apply our function to the OA data.
+## Step 2: Create a function that converts reads into proportions by PCR.
 
-```{r create and run find_PCR_BCDs function}
+```{r create cvt_to_PCR_props function}
+cvt_to_PCR_props <- function(df) {
+  PCR_props <- df %>%
+    group_by(site, bio, tech) %>%
+    mutate(prop = reads / sum(reads)) %>%
+    ungroup() %>%
+    dplyr::select(-(reads))
+  return(PCR_props)
+}
+```
+
+## Step 3: Quantify variation among technical replicates.
+
+We create a function that computes the pairwise Bray-Curtis dissimilarities among technical replicates within each biological sample, stores all obtained values in a numeric vector, and plots those values in a histogram. Our function allows the user to specify which sequence runs should be analyzed (by default, all will be used), hence the seq_runs vector parameter. Note that we first convert reads into proportions (by PCR) before calculating BCDs.
+
+```{r create find_PCR_BCDs function}
 # Computes pairwise BCDs among technical replicates from each biological sample.
 # Returns a vector of those values and a histogram.
 # Args:
 #   df: A data frame with columns for bio, tech, hash, prop, and seq_run.
 #   seq_runs: A vector containing the numbers of the seq runs to be analyzed.
-find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all seq runs by default
-  df <- df %>% 
-    ungroup() %>%  # Just in case
-    filter(seq_run %in% seq_runs) %>% 
-    mutate(bottle = paste(site, bio, sep = "_")) %>% 
+find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) { # Includes all seq runs by default
+  df <- cvt_to_PCR_props(df) %>%
+    filter(seq_run %in% seq_runs) %>%
+    mutate(bottle = paste(site, bio, sep = "")) %>%
     dplyr::select(bottle, tech, hash, prop)
-  
+
   bottles <- unique(df$bottle)
   bcds_upper_bound <- choose(max(df$tech), 2) * length(bottles)
-  bcds <- rep(NA, bcds_upper_bound)  # Vector to store BCDs
+  bcds <- rep(NA, bcds_upper_bound) # Vector to store BCDs
   i <- 1
-  
+
   # Iterate over each bottle and calculate BCDs among PCRs
   for (b in bottles) {
     # Data wrangling in preparation for the vegdist function
-    bottle_data <- df %>% 
-      filter(bottle == b) %>% 
-      pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>% 
-      dplyr::select(matches("\\d{1, }"))  # Columns that have numbers as names (i.e., represent PCRs)
+    bottle_data <- df %>%
+      filter(bottle == b) %>%
+      pivot_wider(names_from = tech, values_from = prop, values_fill = 0) %>%
+      dplyr::select(matches("\\d{1, }")) # Columns that have numbers as names (i.e., represent PCRs)
     flipped_bottle_data <- t(bottle_data)
     num_PCR_pairs <- choose(nrow(flipped_bottle_data), 2)
     dis <- vegdist(flipped_bottle_data)
     bcds[i:(i + num_PCR_pairs - 1)] <- as.vector(dis)
     i <- i + num_PCR_pairs
   }
-  
+
   bcds <- as.numeric(na.omit(bcds))
-  
+
   # Sanity check
   print("Bray-Curtis Dissimilarities:")
   print(bcds)
   print(paste("Mean BCD value:", mean(bcds), sep = " "))
-  
+
   # Plot
   his <- hist(
     bcds,
@@ -80,17 +94,20 @@ find_PCR_BCDs <- function(df, seq_runs = unique(df$seq_run)) {  # Includes all s
 
   return(list(bcds, his))
 }
-
-# Run the function with our data
-# TODO : FIGURE OUT WHAT'S UP WITH 5 AND 6 AND ALSO DIFFERNECES BETWEEN SEQ RUNS
-PCR_output <- find_PCR_BCDs(PCR_props, 1:4)
 ```
 
-## Step 3: Bottle Variation
+Below we apply the find_PCR_BCDs function to our OA data.
 
-As a reminder, we are *not* averaging across PCRs.
+```{r run find_PCR_BCDs function}
+# TODO : FIGURE OUT WHAT'S UP WITH 5 AND 6 AND ALSO DIFFERNECES BETWEEN SEQ RUNS
+PCR_output <- find_PCR_BCDs(all_data, 1:4)
+```
 
-```{r create & run function to calculate BCDs by sampling event; Plot}
+## Step 4: Quantify variation among biological replicates.
+
+Here we create a function that computes the pairwise Bray-Curtis dissimilarities among replicates from separate bottles (but from same sampling event). We do not average across PCRs. Note that we first convert reads into proportions (by PCR) before calculating BCDs.
+
+```{r create find_bottle_BCDs function}
 # Computes pairwise Bray-Curtis dissimilarities across different biological
 # replicates (but not among PCRs from the same bottle). Returns a vector of
 # those values and a histogram.
@@ -101,36 +118,35 @@ find_bottle_BCDs <- function(df) {
   # do this by finding the maximum number of replicates from any individual site.
   temp <- df %>%
     dplyr::select(site, bio, tech) %>%
-    group_by(site) %>% 
-    unique() %>%  # Get rid of duplicate rows bc we don't care about the number of hashes
-    mutate(n = n())  # Number of replicates for that site
-  
+    group_by(site) %>%
+    unique() %>% # Get rid of duplicate rows bc we don't care about the number of hashes
+    mutate(n = n()) # Number of replicates for that site
+
   max_replicates <- max(temp$n)
-  
+
   # Nest data by site
-  nested_df <- df %>% 
-    ungroup() %>%  # TODO : DELETE LINE ONCE I'M DONE TESTING
-    dplyr::select(site, bio, tech, hash, prop) %>% 
-    unite(bio, tech, col = "bio.PCR", sep = ".") %>%  # Combine to get A.1, A.2, etc.
-    arrange(site, bio.PCR, hash) %>% 
+  nested_df <- cvt_to_PCR_props(df) %>%
+    dplyr::select(site, bio, tech, hash, prop) %>%
+    unite(bio, tech, col = "bio.PCR", sep = ".") %>% # Combine to get A.1, A.2, etc.
+    arrange(site, bio.PCR, hash) %>%
     nest(data = c(bio.PCR, hash, prop))
-  
+
   for (i in 1:length(nested_df$data)) {
     nested_df$data[[i]] <- nested_df$data[[i]] %>%
       pivot_wider(names_from = bio.PCR, values_from = prop, values_fill = 0)
   }
-  
+
   # Notes:
   # a) max_replicates ^ 2 is the max size of any BCD matrix generated from a
   # single site
   # b) We multiply by 0.5 bc at least half the values from each dis_mat matrix
   # will be removed (to eliminate duplicates and intra-bottle comparisons)
-  bcds_upper_bound <- ceiling((max_replicates ^ 2) * 0.5 * length(nested_df$site))
+  bcds_upper_bound <- ceiling((max_replicates^2) * 0.5 * length(nested_df$site))
   bcds <- rep(NA, bcds_upper_bound)
   i <- 1
-  
+
   for (j in 1:length(nested_df$site)) {
-    event <- nested_df$data[[j]]  # A data frame corresponding to one sampling event
+    event <- nested_df$data[[j]] # A data frame corresponding to one sampling event
     sub_tib <- event %>% dplyr::select(!c(hash))
     flip_tib <- t(sub_tib)
     dis <- vegdist(flip_tib)
@@ -144,27 +160,27 @@ find_bottle_BCDs <- function(df) {
       for (row_num in 1:nrow(dis_mat)) {
         # Extracting the first letter (A, B, C, etc) from the row's name
         row_letter <- substr(rownames(dis_mat)[row_num], 1, 1)
-        if (! col_letter > row_letter) {
+        if (!col_letter > row_letter) {
           dis_mat[row_num, col_num] <- NA
         }
       }
     }
 
-    bcd_vector <- na.omit(as.vector(dis_mat))  # All BCDs for that sampling event as vector
+    bcd_vector <- na.omit(as.vector(dis_mat)) # All BCDs for that sampling event as vector
     len <- length(bcd_vector)
     if (len > 0) {
-      bcds[i:(i + len - 1)] <- bcd_vector  # Add the BCD values to our long vector
-      i <- i + len  # Update index
+      bcds[i:(i + len - 1)] <- bcd_vector # Add the BCD values to our long vector
+      i <- i + len # Update index
     }
   }
 
   bcds <- as.numeric(na.omit(bcds))
-  
+
   # Sanity check
   print("Bray-Curtis Dissimilarities:")
   print(bcds)
   print(paste("Mean BCD value:", mean(bcds), sep = " "))
-  
+
   # Plot
   his <- hist(
     as.numeric(bcds[-1]),
@@ -175,6 +191,10 @@ find_bottle_BCDs <- function(df) {
 
   return(list(bcds, his))
 }
+```
 
-bottle_output <- find_bottle_BCDs(PCR_props)
+Below we apply the find_bottle_BCDs function to our OA data.
+
+```{r run find_bottle_BCDs function}
+bottle_output <- find_bottle_BCDs(all_data)
 ```

@@ -1,6 +1,6 @@
 ---
-title: "ASV_var_negbin"
-author: "Ryan Kelly, Helen Casendino, Joe Duprey, Kai Vennemann"
+title: "ASV Variation via Negative Binomial Parameters"
+author: "Helen Casendino, Joe Duprey, Ryan Kelly, Kai Vennemann"
 date: "10/28/2021"
 output: html_document
 ---
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## ASV variation using Negative Binomial Parameters
+# ASV Variation via Negative Binomial Parameters
 
 Uses Ryan's code to fit PCR reads for each ASV (usually 3) to a negative binomial distribution. Estimates values for mu and phi in the process.
 
@@ -58,10 +58,10 @@ Then code below takes a data set, groups by species and biological sample, and t
 #   and 2) plot of mu vs. estimated variance and mu vs. phi
 
 
-estimates_pars_byHash <- function(df, rep_type) {
+estimate_pars_byHash <- function(df, rep_type) {
   if (rep_type == "technical") {
     grouping_df <- df %>%
-      mutate(bottle = paste(site, bio, sep = "_"))
+      mutate(bottle = paste(site, bio, sep = "")) %>%
       filter(bottle %in% unique(df$bottle)) %>%
       group_by(bottle, hash)
   }
@@ -96,8 +96,7 @@ estimates_pars_byHash <- function(df, rep_type) {
   return(list(df_NBpars, NBpars_plot))
 }
 
-NB_output <- estimates_pars_byHash(all_data, rep_type = "biological")
+NB_output <- estimate_pars_byHash(all_data, rep_type = "biological")
 ```
 
 Helen: If the curve of mu vs. variance is dependent on phi, we also want to keep track of the slope of mu vs. variance, to compare to the slope of other kinds of replicates?
-
