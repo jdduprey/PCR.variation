@@ -32,10 +32,10 @@ wide_reads <- raw_reads %>%
   pivot_longer(cols=c("1","2","3"), names_to = "tech", values_to = "reads") %>%
   group_by(hash, bottle) %>%
   mutate(CV = sd(reads)/mean(reads)) %>%
+  mutate(mean_reads = mean(reads)) %>%
+  mutate(log_mean_reads = log(mean_reads)) %>%
   pivot_wider(names_from = tech, values_from = reads) %>%
   rename("Hash"="hash") 
-  # rename("tech_1"="1", "tech_2"="2", "tech_3"="3") %>%
-  #mutate(test = sum(across(tech_1, tech_2, tech_3)))
 
 wide_reads_annotated <- left_join(wide_reads, hash_annotated, by="Hash")
 
@@ -85,5 +85,12 @@ ggplot(no_double_dropout, aes(x=CV)) +
 ggsave("../../figures/no_double_drops_hist.png", width = 7, height = 5)
 
 
+```
+```{r}
+
+sub_sample_reads <- slice_sample(wide_reads_annotated, n=9000)
+
+ggplot(wide_reads_annotated, aes(x=log_mean_reads, y=CV)) +
+  geom_point()
 ```
 
