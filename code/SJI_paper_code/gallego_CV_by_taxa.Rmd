@@ -37,9 +37,21 @@ wide_reads <- raw_reads %>%
 
 wide_reads_annotated <- left_join(wide_reads, hash_annotated, by="Hash")
 
+
 ggplot(wide_reads_annotated, aes(x=phylum, y=CV)) +
   geom_boxplot() +
   scale_x_discrete(guide = guide_axis(angle = 90))
+ggsave("../../figures/CV_by_phylum.png", width = 10, height = 5)
+
+ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+ggsave("../../figures/CV_by_kingdom.png", width = 10, height = 5)
+
+ggplot(wide_reads_annotated, aes(x=class, y=CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+ggsave("../../figures/CV_by_class.png", width = 20, height = 5)
 
 # ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
 #   geom_boxplot() +
