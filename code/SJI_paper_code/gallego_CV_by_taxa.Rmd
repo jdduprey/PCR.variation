@@ -29,7 +29,7 @@ wide_reads <- raw_reads %>%
   mutate(bottle = paste(site, bio, sep = "")) %>%
   dplyr::select(tech, hash, reads, bottle) %>%
   group_by(hash, bottle) %>%
-  mutate(CV = sd(reads)/mean(reads)) %>%
+  mutate(CV = sd(reads)/mean(reads)) %>%    # this doesnt work because of NAs, have to fill with 0s first
   pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>%
   rename("Hash"="hash")
   # rename("tech_1"="1", "tech_2"="2", "tech_3"="3") %>%
