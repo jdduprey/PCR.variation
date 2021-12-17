@@ -41,9 +41,9 @@ ggplot(wide_reads_annotated, aes(x=phylum, y=CV)) +
   geom_boxplot() +
   scale_x_discrete(guide = guide_axis(angle = 90))
 
-ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
-  geom_boxplot() +
-  scale_x_discrete(guide = guide_axis(angle = 90))
+# ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
+#   geom_boxplot() +
+#   scale_x_discrete(guide = guide_axis(angle = 90))
 
 ```
 
