@@ -22,7 +22,7 @@ library(stringi)
 ## Part 1: Read in data 
 
 ```{r read in data}
-PCR_props <- read.csv("../../data/long_PCR_props.csv")
+PCR_props <- read.csv("../../data/all_data_clean.csv")
 ```
 
 ## Part 2: PCR variation (within bottles)

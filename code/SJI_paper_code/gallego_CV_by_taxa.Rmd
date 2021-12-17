@@ -1,0 +1,49 @@
+---
+title: "gallego_CV_by_taxa"
+author: "Helen Casendino, Kai Vennemann, Joe Duprey"
+date: "12/17/2021"
+output: html_document
+---
+
+This script takes as input raw read data from Gallego et al.
+It calculates CV for each set of technical replicates within a bio rep.
+It matches this CV to a taxon level and then plots these values in a 
+barplot. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+```{r}
+raw_reads <-  read_csv(here("data/all_data.csv"))
+hash_annotated <- read_csv(here("input/gallego_hash_annotated.csv"))
+```
+
+```{r}
+wide_reads <- raw_reads %>% 
+  mutate(bottle = paste(site, bio, sep = "")) %>%
+  dplyr::select(tech, hash, reads, bottle) %>%
+  group_by(hash, bottle) %>%
+  mutate(CV = sd(reads)/mean(reads)) %>%
+  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>%
+  rename("Hash"="hash")
+  # rename("tech_1"="1", "tech_2"="2", "tech_3"="3") %>%
+  #mutate(test = sum(across(tech_1, tech_2, tech_3)))
+
+wide_reads_annotated <- left_join(wide_reads, hash_annotated, by="Hash")
+
+ggplot(wide_reads_annotated, aes(x=phylum, y=CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+
+ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+
+```
+
