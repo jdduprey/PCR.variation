@@ -28,10 +28,12 @@ hash_annotated <- read_csv(here("input/gallego_hash_annotated.csv"))
 wide_reads <- raw_reads %>% 
   mutate(bottle = paste(site, bio, sep = "")) %>%
   dplyr::select(tech, hash, reads, bottle) %>%
-  group_by(hash, bottle) %>%
-  mutate(CV = sd(reads)/mean(reads)) %>%    # this doesnt work because of NAs, have to fill with 0s first
   pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>%
-  rename("Hash"="hash")
+  pivot_longer(cols=c("1","2","3"), names_to = "tech", values_to = "reads") %>%
+  group_by(hash, bottle) %>%
+  mutate(CV = sd(reads)/mean(reads)) %>%
+  pivot_wider(names_from = tech, values_from = reads) %>%
+  rename("Hash"="hash") 
   # rename("tech_1"="1", "tech_2"="2", "tech_3"="3") %>%
   #mutate(test = sum(across(tech_1, tech_2, tech_3)))
 
@@ -56,6 +58,32 @@ ggsave("../../figures/CV_by_class.png", width = 20, height = 5)
 # ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
 #   geom_boxplot() +
 #   scale_x_discrete(guide = guide_axis(angle = 90))
+
+```
+```{r}
+test_mean <- mean(c(0,0,76))
+test_sd <- sd(c(0,0,76))
+
+test_CV <- test_sd/test_mean
+
+test_mean <- mean(c(0,0,5))
+test_sd <- sd(c(0,0,5))
+
+test_CV <- test_sd/test_mean
+```
+
+```{r}
+ggplot(wide_reads_annotated, aes(x=CV)) + 
+  geom_histogram()
+ggsave("../../figures/all_CV_hist.png", width = 7, height = 5)
+
+no_double_dropout <- wide_reads_annotated %>%
+  filter(CV < 1.73)
+
+ggplot(no_double_dropout, aes(x=CV)) + 
+  geom_histogram()
+ggsave("../../figures/no_double_drops_hist.png", width = 7, height = 5)
+
 
 ```
 
