@@ -28,39 +28,39 @@ hash_annotated <- read_csv(here("input/gallego_hash_annotated.csv"))
 wide_reads <- raw_reads %>% 
   mutate(bottle = paste(site, bio, sep = "")) %>%
   dplyr::select(tech, hash, reads, bottle) %>%
-  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>%
+  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>% #fill non-detections with zero, then data to longform
   pivot_longer(cols=c("1","2","3"), names_to = "tech", values_to = "reads") %>%
   group_by(hash, bottle) %>%
-  mutate(CV = sd(reads)/mean(reads)) %>%
+  mutate(CV = sd(reads)/mean(reads)) %>% #calculate CV 
   mutate(mean_reads = mean(reads)) %>%
   mutate(log_mean_reads = log(mean_reads)) %>%
   pivot_wider(names_from = tech, values_from = reads) %>%
   rename("Hash"="hash") 
 
+# join read counts and hashes with hashes and taxa labels
 wide_reads_annotated <- left_join(wide_reads, hash_annotated, by="Hash")
 
-
+# CV by phylum
 ggplot(wide_reads_annotated, aes(x=phylum, y=CV)) +
   geom_boxplot() +
   scale_x_discrete(guide = guide_axis(angle = 90))
 ggsave("../../figures/CV_by_phylum.png", width = 10, height = 5)
 
+# CV by kingdom
 ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
   geom_boxplot() +
   scale_x_discrete(guide = guide_axis(angle = 90))
 ggsave("../../figures/CV_by_kingdom.png", width = 10, height = 5)
 
+# CV by class
 ggplot(wide_reads_annotated, aes(x=class, y=CV)) +
   geom_boxplot() +
   scale_x_discrete(guide = guide_axis(angle = 90))
 ggsave("../../figures/CV_by_class.png", width = 20, height = 5)
 
-# ggplot(wide_reads_annotated, aes(x=kingdom, y=CV)) +
-#   geom_boxplot() +
-#   scale_x_discrete(guide = guide_axis(angle = 90))
-
 ```
 ```{r}
+# CV is constant for all combinations of 0, 0, int (this makes sense)
 test_mean <- mean(c(0,0,76))
 test_sd <- sd(c(0,0,76))
 
@@ -86,11 +86,3 @@ ggsave("../../figures/no_double_drops_hist.png", width = 7, height = 5)
 
 
 ```
-```{r}
-
-sub_sample_reads <- slice_sample(wide_reads_annotated, n=9000)
-
-ggplot(wide_reads_annotated, aes(x=log_mean_reads, y=CV)) +
-  geom_point()
-```
-
