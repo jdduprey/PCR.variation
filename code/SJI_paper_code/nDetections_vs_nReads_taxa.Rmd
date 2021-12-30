@@ -1,0 +1,103 @@
+---
+title: "Spread among technical replicates based on # of detections, # of reads, or taxon"
+author: "Ramon Gallego, Helen Casendino, Kai Vennemann, Joe Duprey"
+date: "12/29/2021"
+output: html_document
+---
+
+```{r setup & dependencies, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(ggplot2)
+```
+
+# Code Description
+
+This script takes as input raw read data from Gallego et al. (2020) to explain variation among technical replicates (as a function of detection #, read #, and taxa). 
+1. Are agreeing technical replicates (3 detections) *less precise* with more rare things?
+Subset asvs (site-date-bottle-hash) with detection in each PCR replicate (no dropouts), and calculate the CV for each set of technical replicates. Plot how CV tracks with log(mean(nReads)) and taxa. 
+2. How does the proportion of dropouts (<3 detections) change with taxa?
+Subset asvs (site-date-bottle-hash) with <3 detections. For a given taxon, calculate the percentage of that taxon's occurences with 1 or 2 PCR dropouts. Additionally, how does the ratio of 1 dropout/2 dropouts change with remaining nReads value? 
+
+# Read in Data 
+
+```{r read in data}
+raw_reads <- read_csv(here("data/all_data.csv"))
+hash_annotated <- read_csv(here("input/gallego_hash_annotated.csv"))
+```
+
+# Subset of (3) detections
+
+```{r Creating df with annotations and CV}
+
+wide_reads <- raw_reads %>%
+  mutate(bottle = paste(site, bio, sep = "")) %>%
+  dplyr::select(tech, hash, reads, bottle) %>%
+  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>% # fill non-detections with zero, then data to longform
+  pivot_longer(cols = c("1", "2", "3"), names_to = "tech", values_to = "reads") %>%
+  group_by(hash, bottle) %>%
+  mutate(CV = sd(reads) / mean(reads)) %>% # calculate CV
+  mutate(mean_reads = mean(reads)) %>%
+  mutate(log_mean_reads = log(mean_reads)) %>%
+  pivot_wider(names_from = tech, values_from = reads) %>%
+  rename("Hash" = "hash")
+
+# join read counts and hashes with hashes and taxa labels
+wide_reads_annotated <- left_join(wide_reads, hash_annotated, by = "Hash")
+
+```
+
+```{r Subset 3 detections}
+dropouts <- c(which(wide_reads_annotated$`1` == 0),
+              which(wide_reads_annotated$`2` == 0),
+              which(wide_reads_annotated$`3` == 0))
+reads_annotated_no_drops <- wide_reads_annotated[-unique(dropouts),]
+```
+
+```{r Plots}
+
+# log_mean_reads vs. CV
+ggplot(reads_annotated_no_drops, aes(x = log_mean_reads, y = CV)) +
+  geom_point() + 
+  scale_x_discrete(guide = guide_axis(angle = 90))
+
+# taxa vs. CV
+# For now, let's go with these taxa to get a range of prevalence (needs work)
+classes <- c("Mammalia","Actinopteri", "Bivalvia", "Polychaeta", "Phaeophyceae","Dictyochophyceae", "Dinophyceae")
+
+class_subset_indices <- which(reads_annotated_no_drops$class %in% classes)
+
+reads_annotated_class_subset <- reads_annotated_no_drops[class_subset_indices,]
+
+ggplot(reads_annotated_class_subset, aes(x = class, y = CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+```
+
+# Exploring (<3) detections
+
+```{r Per taxon, percentage of dropouts; plot}
+prop.drops <- function(wide_df, classes){
+
+proportion_drops <- data.frame(class = classes, proportionDrops = NA)
+for(i in 1:length(classes)){
+  df <- wide_df[wide_df$class == classes[i],]
+
+  dropouts <- c(which(df$`1` == 0),
+              which(df$`2` == 0),
+              which(df$`3` == 0))
+ proportion_drops[i,2] <- length(unique(dropouts)) / nrow(df)
+}
+  return(proportion_drops)
+}
+
+output_df <- prop.drops(wide_reads_annotated, classes)
+
+ggplot(output_df, aes(x = class, y = proportionDrops)) +
+  geom_bar(stat="identity") + 
+   scale_x_discrete(limits = classes, guide = guide_axis(angle = 90)) 
+```
+
+We also know that one-detection asvs are linked to lower mean reads than two- and three-detection asvs. 
+
