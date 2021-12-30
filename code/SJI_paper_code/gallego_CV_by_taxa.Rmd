@@ -1,6 +1,6 @@
 ---
 title: "Gallego CV By Taxa"
-author: "Helen Casendino, Kai Vennemann, Joe Duprey"
+author: "Ramon Gallego, Helen Casendino, Kai Vennemann, Joe Duprey"
 date: "12/17/2021"
 output: html_document
 ---
