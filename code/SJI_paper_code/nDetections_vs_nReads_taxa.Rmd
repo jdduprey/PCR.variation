@@ -64,25 +64,25 @@ ggplot(reads_annotated_no_drops, aes(x = log_mean_reads, y = CV)) +
 
 # taxa vs. CV
 # For now, let's go with these taxa to get a range of prevalence (needs work)
-classes <- c("Mammalia","Actinopteri", "Bivalvia", "Polychaeta", "Phaeophyceae","Dictyochophyceae", "Dinophyceae")
+king <- c("Metazoa", "Rhodophyta", "Fungi","Dinoflagellates")
 
-class_subset_indices <- which(reads_annotated_no_drops$class %in% classes)
+kingdom_subset_indices <- which(reads_annotated_no_drops$kingdom %in% king)
 
-reads_annotated_class_subset <- reads_annotated_no_drops[class_subset_indices,]
+reads_annotated_kingdom_subset <- reads_annotated_no_drops[kingdom_subset_indices,]
 
-ggplot(reads_annotated_class_subset, aes(x = class, y = CV)) +
+ggplot(reads_annotated_kingdom_subset, aes(x = kingdom, y = CV)) +
   geom_boxplot() +
-  scale_x_discrete(guide = guide_axis(angle = 90))
+  scale_x_discrete(limits = king, guide = guide_axis(angle = 90))
 ```
 
 # Exploring (<3) detections
 
 ```{r Per taxon, percentage of dropouts; plot}
-prop.drops <- function(wide_df, classes){
+prop.drops <- function(wide_df, kingdoms){
 
-proportion_drops <- data.frame(class = classes, proportionDrops = NA)
-for(i in 1:length(classes)){
-  df <- wide_df[wide_df$class == classes[i],]
+proportion_drops <- data.frame(kingdom = kingdoms, proportionDrops = NA)
+for(i in 1:length(kingdoms)){
+  df <- wide_df[wide_df$kingdom == kingdoms[i],]
 
   dropouts <- c(which(df$`1` == 0),
               which(df$`2` == 0),
@@ -92,11 +92,11 @@ for(i in 1:length(classes)){
   return(proportion_drops)
 }
 
-output_df <- prop.drops(wide_reads_annotated, classes)
+output_df <- prop.drops(wide_reads_annotated, c("Metazoa", "Rhodophyta", "Fungi","Dinoflagellates"))
 
-ggplot(output_df, aes(x = class, y = proportionDrops)) +
+ggplot(output_df, aes(x = kingdom, y = proportionDrops)) +
   geom_bar(stat="identity") + 
-   scale_x_discrete(limits = classes, guide = guide_axis(angle = 90)) 
+   scale_x_discrete(limits = kingdoms, guide = guide_axis(angle = 90)) 
 ```
 
 We also know that one-detection asvs are linked to lower mean reads than two- and three-detection asvs. 
