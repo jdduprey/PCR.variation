@@ -1,0 +1,93 @@
+---
+title: "Gallego CV By Taxa"
+author: "Ramon Gallego, Helen Casendino, Kai Vennemann, Joe Duprey"
+date: "12/17/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Gallego CV By Taxa
+
+This script takes as input raw read data from Gallego et al. It then calculates the CV for each set of technical replicates within a bio rep. Finally, it matches this CV to a taxon level and then plots these values in a bar plot.
+
+```{r dependencies}
+library(here)
+library(tidyverse)
+library(ggplot2)
+```
+
+Read in data.
+
+```{r}
+raw_reads <- read_csv(here("data/all_data.csv"))
+hash_annotated <- read_csv(here("input/gallego_hash_annotated.csv"))
+```
+
+Calculate and plot CVs by taxa.
+
+```{r}
+wide_reads <- raw_reads %>%
+  mutate(bottle = paste(site, bio, sep = "")) %>%
+  dplyr::select(tech, hash, reads, bottle) %>%
+  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>% # fill non-detections with zero, then data to longform
+  pivot_longer(cols = c("1", "2", "3"), names_to = "tech", values_to = "reads") %>%
+  group_by(hash, bottle) %>%
+  mutate(CV = sd(reads) / mean(reads)) %>% # calculate CV
+  mutate(mean_reads = mean(reads)) %>%
+  mutate(log_mean_reads = log(mean_reads)) %>%
+  pivot_wider(names_from = tech, values_from = reads) %>%
+  rename("Hash" = "hash")
+
+# join read counts and hashes with hashes and taxa labels
+wide_reads_annotated <- left_join(wide_reads, hash_annotated, by = "Hash")
+
+# CV by phylum
+ggplot(wide_reads_annotated, aes(x = phylum, y = CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+ggsave("../../figures/CV_by_phylum.png", width = 10, height = 5)
+
+# CV by kingdom
+ggplot(wide_reads_annotated, aes(x = kingdom, y = CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+ggsave("../../figures/CV_by_kingdom.png", width = 10, height = 5)
+
+# CV by class
+ggplot(wide_reads_annotated, aes(x = class, y = CV)) +
+  geom_boxplot() +
+  scale_x_discrete(guide = guide_axis(angle = 90))
+ggsave("../../figures/CV_by_class.png", width = 20, height = 5)
+```
+Sanity check.
+
+```{r}
+# CV is constant for all combinations of 0, 0, int (this makes sense)
+test_mean <- mean(c(0, 0, 76))
+test_sd <- sd(c(0, 0, 76))
+
+test_CV <- test_sd / test_mean
+
+test_mean <- mean(c(0, 0, 5))
+test_sd <- sd(c(0, 0, 5))
+
+test_CV <- test_sd / test_mean
+```
+
+CVs as histogram.
+
+```{r}
+ggplot(wide_reads_annotated, aes(x = CV)) +
+  geom_histogram()
+ggsave("../../figures/all_CV_hist.png", width = 7, height = 5)
+
+no_double_dropout <- wide_reads_annotated %>%
+  filter(CV < 1.73)
+
+ggplot(no_double_dropout, aes(x = CV)) +
+  geom_histogram()
+ggsave("../../figures/no_double_drops_hist.png", width = 7, height = 5)
+```
