@@ -96,7 +96,7 @@ output_df <- prop.drops(wide_reads_annotated, c("Metazoa", "Rhodophyta", "Fungi"
 
 ggplot(output_df, aes(x = kingdom, y = proportionDrops)) +
   geom_bar(stat="identity") + 
-   scale_x_discrete(limits = kingdoms, guide = guide_axis(angle = 90)) 
+   scale_x_discrete(limits = c("Metazoa", "Rhodophyta", "Fungi","Dinoflagellates"), guide = guide_axis(angle = 90)) 
 ```
 
 We also know that one-detection asvs are linked to lower mean reads than two- and three-detection asvs. 
