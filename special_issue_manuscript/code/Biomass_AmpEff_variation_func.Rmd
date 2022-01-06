@@ -21,13 +21,9 @@ biomass.ampeff.vs.techvar <- function(exampledf){
 abundance_amp_bins_df <- data.frame(exampledf,abundance_bin=cut(exampledf$abundance,as.numeric(quantile(exampledf$abundance)),include.lowest=TRUE),
 ampef_bin = cut(exampledf$amp_ef,unique(as.numeric(quantile(exampledf$amp_ef))),include.lowest=TRUE))
  
-  unique(abundance_amp_bins_df[,15:16])
+ abundance_amp_uniquebins <-  unique(abundance_amp_bins_df[,15:16])
     
-                     
-                 amp_bin=cut(exampledf$amf_ef,quantile(exampledf$amf_ef),include.lowest=TRUE))
-  # cbins(exampledf$abundance, target.bins = 3, binct = 3)
-  
-  
+
   
 }
 
