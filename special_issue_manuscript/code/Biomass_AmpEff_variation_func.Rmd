@@ -7,7 +7,28 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r dependencies}
+library(here)
+library(tidyverse)
+library(binr)
+```
+
 ```{r tech variability as function of amp efficiency and biomass}
+exampledf <- read.csv(here("/special_issue_manuscript/Data/gold_example_data.csv"))
+
+biomass.ampeff.vs.techvar <- function(exampledf){
+  exampledf
+  
+ bins(exampledf$abundance, target.bins = 3, minpts = 2)
+  
+    data.frame(exampledf,abundance_bin=cut(exampledf$abundance,as.numeric(quantile(exampledf$abundance)),include.lowest=TRUE))
+      data.frame(exampledf, amp_bin=cut(exampledf$amf_ef,quantile(exampledf$amf_ef),include.lowest=TRUE))
+  # cbins(exampledf$abundance, target.bins = 3, binct = 3)
+  
+  
+  
+}
+
 
 
 ```
