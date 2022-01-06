@@ -1,7 +1,7 @@
 ---
 title: "Spread among technical replicates based on # of detections, # of reads, or taxon"
 author: "Ramon Gallego, Helen Casendino, Kai Vennemann, Joe Duprey"
-date: "12/29/2021"
+date: "1/5/2021"
 output: html_document
 ---
 
@@ -92,11 +92,12 @@ for(i in 1:length(kingdoms)){
   return(proportion_drops)
 }
 
-output_df <- prop.drops(wide_reads_annotated, c("Metazoa", "Rhodophyta", "Fungi","Dinoflagellates"))
+output_df <- prop.drops(wide_reads_annotated, c("Metazoa","Stramenopiles","Viridiplantae", "Fungi","Dinoflagellates"))
 
 ggplot(output_df, aes(x = kingdom, y = proportionDrops)) +
-  geom_bar(stat="identity") + 
-   scale_x_discrete(limits = kingdoms, guide = guide_axis(angle = 90)) 
+  geom_bar(stat="identity", fill = "#FF6666") + 
+   scale_x_discrete(limits = c("Metazoa","Stramenopiles", "Viridiplantae", "Fungi","Dinoflagellates"), guide = guide_axis(angle = 90)) +
+   ylab("Proportion of Dropouts (1 or 2)") 
 ```
 
 We also know that one-detection asvs are linked to lower mean reads than two- and three-detection asvs. 
