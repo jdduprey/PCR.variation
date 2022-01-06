@@ -1,0 +1,173 @@
+---
+title: "10212020_satellite_data_rerddapXtracto"
+author: "Zack Gold"
+date: "9/28/2021"
+output: html_document
+---
+
+#Load Packages
+```{r}
+library(ncdf4) 
+library(parsedate)
+library(plotdap)
+library(rerddap)
+library(sp)
+library(rerddapXtracto)
+library(devtools)
+library(rerddapXtracto)
+library(tidyverse)
+library(gganimate)
+library(ggplot2)
+library(plotdap)
+library(here)
+```
+
+# Example 1 - CALCOFI
+
+### SST
+```{r}
+require("rerddap")
+## base URL does not need to given because it is the default one
+dataInfo <- info('erdMBchla1day')
+
+urlBase <- "https://coastwatch.pfeg.noaa.gov/erddap/"
+parameter <- "sea_surface_temperature"
+
+dataInfo <- info('erdPH53sstdmday', url = urlBase)
+```
+### Load in Site Sampling Data
+Brief background, there are 4 stations sampled in the Spring 1996, 1998-2019. 
+Hoping to obtain monthly data across the entire sampling time span, specifically to see if SST/Chla is a predictor variable for ichthyoplankton communities derived from eDNA data. Particularly interested in comparing 1 month, 2 month, and annual SST values.
+```{r}
+calcofi_sampling <-
+  read.csv(here("data", "CALCOFI_date_loc_data.csv"))
+  
+  #Get monthly time data
+  calcofi_sampling %>%
+  filter(.,
+  date %in% c("1996-04-16", "1996-04-28", "1996-04-23", "1996-04-17")) %>%
+  dplyr::select(-date) -> date_template
+  
+  seq(as.Date("1995-04-01"), by = "month", length.out = 290) -> all_dates
+  all_dates %>%  as_tibble() %>%
+  dplyr::select(date = value) %>%
+  merge(date_template) -> full_calcofi_sampling
+  
+  full_calcofi_sampling$date <-
+  as.Date(full_calcofi_sampling$date, "%Y-%m-%d")
+  full_calcofi_sampling %>%
+  mutate(., lon = lon + 360) -> full_calcofi_sampling
+  
+  #Chla Satellite data only available 1997 and onwards
+  
+  #Get monthly time data
+  seq(as.Date("1997-09-04"), by = "month", length.out = 270) -> all_dates_2
+  all_dates_2 %>%  as_tibble() %>%
+  dplyr::select(date = value) %>%
+  merge(date_template) -> small_calcofi_sampling
+  
+  
+  small_calcofi_sampling$date <-
+  as.Date(small_calcofi_sampling$date, "%Y-%m-%d")
+  small_calcofi_sampling %>%
+  mutate(., lon = lon + 360) -> small_calcofi_sampling
+  
+```
+
+
+```{r}
+require("rerddap")
+require("rerddapXtracto")
+
+# First we will copy the calcofi_sampling data into a variable
+xpos <- full_calcofi_sampling$lon
+ypos <- full_calcofi_sampling$lat
+tpos <- full_calcofi_sampling$date
+zpos <- rep(0., length(xpos))
+swsstInfo <- rerddap::info('erdPH53sstdmday', url = urlBase)
+
+#This code works, but takes a while to run
+# swsst1 <- rxtracto(swsstInfo, parameter = parameter, xcoord = xpos, ycoord = ypos, tcoord = tpos, xlen = .2, ylen = .2, progress_bar = TRUE)
+# saveRDS(swsst1, file=here("data","sst_data.RDS"))
+
+#Load
+swsst1 <- readRDS(file = here("data", "sst_data.RDS"))
+```
+
+```{r}
+require("ggplot2")
+require("plotdap")
+
+#Annimation Does not do what I hoped/expected
+myPlot_1 <-
+plotTrack(
+swsst1,
+xpos,
+ypos,
+tpos,
+plotColor = 'thermal',
+animate = TRUE,
+cumulative = TRUE
+)
+
+```
+
+
+#Example 3 CALCOFI
+Plot entire Southern California Region.
+### SST
+
+
+```{r}
+require("rerddap")
+require("rerddapXtracto")
+parameter <- "sea_surface_temperature"
+
+xpos <- c(-122 + 360, -116 + 360)
+ypos <- c(29, 35)
+time_save <-
+seq(as.Date("1995-04-01"), by = "year", length.out = 25)
+tpos <- c(min(time_save), max(time_save))
+sstInfo <- rerddap::info('erdPH53sstdmday', url = urlBase)
+
+#Load data to save time
+VIIRS <-
+rxtracto_3D(
+sstInfo,
+parameter = parameter,
+xcoord = xpos,
+ycoord = ypos,
+tcoord = tpos
+)
+
+saveRDS(VIIRS, file = here("data/sst_region_data.RDS"))
+
+#Load
+VIIRS <- readRDS(file = here("data/sst_region_data.RDS"))
+
+```
+
+```{r}
+require("gganimate")
+require("ggplot2")
+require("plotdap")
+
+seq(1, 290, 12) -> slicer #Only take the month of CalCOFI sampling in Spring instead of all 288 months
+sanctchl1 <- VIIRS
+sanctchl1$sea_surface_temperature <-
+sanctchl1$sea_surface_temperature[, , slicer]
+sanctchl1$time <- sanctchl1$time[slicer]
+
+sst_Plot2 <-
+plotBBox(
+sanctchl1,
+plotColor = 'thermal',
+time = identity,
+animate = TRUE,
+maxpixels = 30000
+)
+
+sst_Plot2
+gganimate::anim_save(here("data", "sst_Plot.gif"))
+
+```
