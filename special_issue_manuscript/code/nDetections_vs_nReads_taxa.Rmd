@@ -23,8 +23,8 @@ Subset asvs (site-date-bottle-hash) with <3 detections. For a given taxon, calcu
 # Read in Data 
 
 ```{r read in data}
-raw_reads <- read_csv(here("data/all_data.csv"))
-hash_annotated <- read_csv(here("input/gallego_hash_annotated.csv"))
+raw_reads <- read_csv(here("special_issue_manuscript/data/gallego_all_data.csv"))
+hash_annotated <- read_csv(here("special_issue_manuscript/data/gallego_hash_annotated.csv"))
 ```
 
 # Subset of (3) detections
