@@ -52,13 +52,24 @@ cal_props <- counts_plus_reads %>%
   mutate(., prop_reads= mifish_reads/tot_reads,
          prop_counts=larval_counts/tot_counts)
 
-write_csv(cal_props, here("special_issue_manuscript", "data", "calcofi_props.csv"))
+# 
+cal_props_wide <- cal_props %>%
+  pivot_wider(names_from = tech_rep, values_from = mifish_reads)
 
-cal_props %>%
-  dplyr::select(-prop_counts) %>% 
-  drop_na(prop_reads) %>% 
-  group_by(Sample_ID) %>%
-  dplyr::summarise(prop_check = sum(prop_reads)) -> sanity_check
+# put in amplification efficiencies
+calcofi_amps <- read.csv(here("special_issue_manuscript", "data", "alphas_oceanic.csv"))
+calcofi_amps <- calcofi_amps %>% rename("ID_mifish" = "Species")
+
+complete_cal_props_wide <- left_join(cal_props_wide, calcofi_amps, by = "ID_mifish" )
+
+write_csv(cal_props, here("special_issue_manuscript", "data", "complete_cal_props_wide.csv"))
+
+
+# cal_props %>%
+#   dplyr::select(-prop_counts) %>% 
+#   drop_na(prop_reads) %>% 
+#   group_by(Sample_ID) %>%
+#   dplyr::summarise(prop_check = sum(prop_reads)) -> sanity_check
 
 # cal_props_csv <- cal_props %>%
 #   dplyr::select(-prop_reads) %>%
