@@ -30,9 +30,41 @@ counts_plus_reads_wide <- counts_plus_reads %>%
   
 write_csv(counts_plus_reads_wide, here("special_issue_manuscript", "data", "calcofi_reads_counts_wide.csv"))
 
-# ggplot(counts_plus_reads, aes(x=mifish_reads)) + 
-#   geom_histogram()
-# 
-# ggplot(counts_plus_reads, aes(x=larval_counts)) + 
-#   geom_histogram()
+# calculating proportion reads 
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":" ) %>% 
+  dplyr::select(-larval_counts) %>% 
+  filter(., !is.na(mifish_reads)) %>% 
+  group_by(Sample_ID) %>% 
+  dplyr::summarise(tot_reads=sum(mifish_reads)) -> mifish_tot_reads
 
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":") %>% 
+  dplyr::select(-mifish_reads) %>% 
+  filter(., !is.na(larval_counts)) %>% 
+  group_by(Sample_ID) %>% 
+  dplyr::summarise(tot_counts=sum(larval_counts)) -> larvae_tot_counts
+
+cal_props <- counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts)
+
+write_csv(cal_props, here("special_issue_manuscript", "data", "calcofi_props.csv"))
+
+cal_props %>%
+  dplyr::select(-prop_counts) %>% 
+  drop_na(prop_reads) %>% 
+  group_by(Sample_ID) %>%
+  dplyr::summarise(prop_check = sum(prop_reads)) -> sanity_check
+
+# cal_props_csv <- cal_props %>%
+#   dplyr::select(-prop_reads) %>%
+#   drop_na(prop_reads)
+
+# cal_prop_reads_wide <- cal_props %>%
+#   drop_na(prop_reads) %>% 
+#   dplyr::select(-c(Sample_ID, prop_counts, tot_reads, tot_counts)) %>% 
+#   pivot_wider(names_from = tech_rep, values_from = prop_reads)
