@@ -23,9 +23,9 @@ Single argument is an Input dataframe with the following columns:
 - amp_ef, with amplication efficiency for each asv-sample (each row, essentially)
 
 ```{r tech variability as function of amp efficiency and biomass}
-TechDrops.vs.CountsAmps <- function(input_df){
+TechDrops.vs.CountsAmps <- function(input_df, countBreaks, ampBreaks){
   
-  total_binned_df <- data.frame(input_df, abundance_bin=cut(input_df$abundance, na.rm =T, breaks = 3),  ampef_bin = cut(input_df$amp_ef, na.rm= T, breaks = 7))  # sort abundance and amp efficiency into quantiles with all input data
+  total_binned_df <- data.frame(input_df, abundance_bin=cut(input_df$abundance, na.rm =T, breaks = countBreaks),  ampef_bin = cut(input_df$amp_ef, na.rm= T, breaks = ampBreaks))  # sort abundance and amp efficiency into quantiles with all input data
   
   
   
@@ -93,6 +93,6 @@ CalCofi_mock_complete <- CalCofi_wide_reads_counts %>% rename(c("amp_ef" = mean_
 test<- CalCofi_mock_complete[- c(which(CalCofi_mock_complete$"tech_1" == 0 & CalCofi_mock_complete$"tech_2" == 0, CalCofi_mock_complete$"tech_3" == 0)),] 
 
 
-output <- TechDrops.vs.CountsAmps(input_df = test)
+output <- TechDrops.vs.CountsAmps(input_df = test, countBreaks = 2, ampBreaks = 2)
 ```
 
