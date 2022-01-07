@@ -52,17 +52,11 @@ cal_props <- counts_plus_reads %>%
   mutate(., prop_reads= mifish_reads/tot_reads,
          prop_counts=larval_counts/tot_counts)
 
-# 
-cal_props_wide <- cal_props %>%
-  pivot_wider(names_from = tech_rep, values_from = mifish_reads)
-
-# put in amplification efficiencies
 calcofi_amps <- read.csv(here("special_issue_manuscript", "data", "alphas_oceanic.csv"))
 calcofi_amps <- calcofi_amps %>% rename("ID_mifish" = "Species")
+complete_cal_props_long <- left_join(cal_props, calcofi_amps, by = "ID_mifish" )
 
-complete_cal_props_wide <- left_join(cal_props_wide, calcofi_amps, by = "ID_mifish" )
-
-write_csv(complete_cal_props_wide, here("special_issue_manuscript", "data", "complete_cal_props_wide.csv"))
+write_csv(complete_cal_props_long, here("special_issue_manuscript", "data", "complete_cal_props_long.csv"))
 
 
 # cal_props %>%
