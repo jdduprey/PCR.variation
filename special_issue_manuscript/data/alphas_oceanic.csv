@@ -1,0 +1,13 @@
+,mean_log_alpha,sp_idx,Species
+alpha[1],-0.02994071,1,Citharichthys stigmaeus
+alpha[2],-0.017674972,2,Citharichthys xanthostigma
+alpha[3],-0.02142623,3,Engraulis mordax
+alpha[4],0.012960305,4,Leuroglossus stilbius
+alpha[5],-0.086205655,5,Merluccius productus
+alpha[6],-0.019447264,6,Nannobrachium ritteri
+alpha[7],-0.030664253,7,Sardinops sagax
+alpha[8],-0.013206888,8,Sebastes paucispinis
+alpha[9],-0.033792615,9,Stenobrachius leucopsarus
+alpha[10],-0.032601163,10,Trachurus symmetricus
+alpha[11],-0.013356631,11,Triphoturus mexicanus
+alpha[12],0,12,Citharichthys sordidus
