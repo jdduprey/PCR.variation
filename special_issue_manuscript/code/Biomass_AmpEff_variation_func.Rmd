@@ -90,7 +90,9 @@ CalCofi_wide_reads_counts <- CalCofi_mock_complete_IDrow %>%
 
 CalCofi_mock_complete <- CalCofi_wide_reads_counts %>% rename(c("amp_ef" = mean_log_alpha ,"abundance" = larval_counts, "tech_1" = "1", "tech_2" = "2", "tech_3" = "3"))
 
+test<- CalCofi_mock_complete[- c(which(CalCofi_mock_complete$"tech_1" == 0 & CalCofi_mock_complete$"tech_2" == 0, CalCofi_mock_complete$"tech_3" == 0)),] 
 
-output <- TechDrops.vs.CountsAmps(input_df = CalCofi_mock_complete)
+
+output <- TechDrops.vs.CountsAmps(input_df = test)
 ```
 
