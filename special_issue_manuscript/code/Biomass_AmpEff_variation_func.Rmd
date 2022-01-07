@@ -12,6 +12,7 @@ library(here)
 library(tidyverse)
 library(binr)
 library(lattice)
+library(viridisLite)
 ```
 
 The goal of following function (TechDrops.vs.CountsAmps) is to see how the frequency of dropouts among technical reps varies as a function of amplification efficiency and original biomass or count. 
@@ -48,20 +49,23 @@ for(i in 1:length(unique_bins[,1])){
   propdrops[i,3] <- length(unique(dropouts)) / nrow(specific_bin_df)
   
 }
+
+# just adding numerical factor levels to the bin factor levels
+outputdf <- cbind(propdrops, unique(cbind(bin_levels_list$abundance_bin, bin_levels_list$ampef_bin)))
+
 # plot 
 
-print(levelplot(dropout_proportion ~ `2`*`1`, 
-          scales=list(x= list(at=sort(unique(output$`2`))),
-                      y= list(at=sort(unique(output$`1`)))),
+print(levelplot(dropout_proportion ~ `2`*`1`, # "2" is amp, "1" is abundance
+          scales=list(x= list(at=sort(unique(outputdf$`2`))),
+                      y= list(at=sort(unique(outputdf$`1`)))),
           colorkey= list(title= "Proportion of Dropouts"),
-          data=output,
+          data=outputdf,
           xlab="amplification efficiency bins",
           ylab = "abundance bins",
           main="",
           col.regions = viridis(100)))
 
-# just adding numerical factor levels to the bin factor levels
-return(cbind(propdrops, unique(cbind(bin_levels_list$abundance_bin, bin_levels_list$ampef_bin))))
+return(outputdf)
 }
 
 # should relable w/ actual bins, and figure out way to make more than 4 bins (how many hm) 
