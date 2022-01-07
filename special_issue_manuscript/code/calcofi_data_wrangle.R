@@ -62,7 +62,7 @@ calcofi_amps <- calcofi_amps %>% rename("ID_mifish" = "Species")
 
 complete_cal_props_wide <- left_join(cal_props_wide, calcofi_amps, by = "ID_mifish" )
 
-write_csv(cal_props, here("special_issue_manuscript", "data", "complete_cal_props_wide.csv"))
+write_csv(complete_cal_props_wide, here("special_issue_manuscript", "data", "complete_cal_props_wide.csv"))
 
 
 # cal_props %>%
