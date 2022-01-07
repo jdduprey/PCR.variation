@@ -1,0 +1,186 @@
+---
+title: "Amp Eff Punnet Square Exploration"
+author: "Zack Gold"
+date: "12/2/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggpmisc)
+here()
+```
+
+
+```{r}
+MiFish_data <- readRDS(file = here("special_issue_manuscript", "data","mifish_tech_nReads.RDS"))
+larvae_data <- readRDS(file = here("special_issue_manuscript", "data", "microscopy_tech_nReads.RDS"))
+alphas <- read.csv(file = here("special_issue_manuscript", "data", "alphas_oceanic.csv"))
+
+alphas %>% 
+  mutate(., alpha = exp(mean_log_alpha)) %>% 
+  mutate(., ID_mifish=Species)-> alphas
+```
+
+
+```{r}
+counts_plus_reads <- left_join(MiFish_data, larvae_data)
+
+# lets get the data into wide form 
+counts_plus_reads <- counts_plus_reads %>%
+  mutate(bio_rep = paste(station_id, ext_rep, sep = "_")) %>%
+  select(-c(Sample, ID_sebastes, Unique_ID)) %>%
+  distinct() 
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":") %>% 
+  dplyr::select(-larval_counts) %>% 
+  filter(., !is.na(mifish_reads)) %>% 
+  group_by(Sample_ID) %>% 
+  dplyr::summarise(tot_reads=sum(mifish_reads)) -> mifish_tot_reads
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":") %>% 
+  dplyr::select(-mifish_reads) %>% 
+  filter(., !is.na(larval_counts)) %>% 
+  group_by(Sample_ID) %>% 
+  dplyr::summarise(tot_counts=sum(larval_counts)) -> larvae_tot_counts
+
+
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish=="Engraulis mordax") %>% 
+  filter(., larval_counts >0) %>% 
+  dplyr::select(station_id,larval_counts,prop_counts) %>% distinct() %>% 
+  arrange(desc(prop_counts)) %>% 
+  ggplot(aes(x=log(larval_counts), y=prop_counts)) +geom_point()
+
+counts_plus_reads$ID_mifish %>%  unique()
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish=="Leuroglossus stilbius") %>% 
+  filter(., larval_counts >0) %>% 
+  dplyr::select(station_id,larval_counts,prop_counts) %>% distinct() %>% 
+  arrange(desc(prop_counts)) %>% 
+  ggplot(aes(x=larval_counts, y=prop_counts)) +geom_point()
+
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish=="Sardinops sagax") %>% 
+  filter(., larval_counts >0) %>% 
+  dplyr::select(station_id,larval_counts,prop_counts) %>% distinct() %>% 
+  arrange(desc(prop_counts)) %>% 
+  ggplot(aes(x=larval_counts, y=prop_counts)) +geom_point()
+
+
+```
+
+```{r}
+counts_plus_reads %>% 
+    unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish %in% alphas$Species) %>% 
+  left_join(alphas) %>% 
+  mutate(larval_abundance = case_when(larval_counts > 250  ~"High Counts",
+                              larval_counts >100  ~"Medium Counts",
+                              larval_counts >10  ~"Low Counts",
+                              larval_counts >0  ~"Super Low Counts",
+                              TRUE ~"Not Counted"))-> calcofi_use
+
+
+calcofi_use %>% 
+      filter(., !is.na(mifish_reads)) %>%  
+    group_by(ID_mifish,station_id,ext_rep) %>% 
+  dplyr::summarise(mean_prop_reads = mean(prop_reads),
+                   max_prop_reads=max(prop_reads),
+                   min_prop_reads=min(prop_reads)) %>% 
+  mutate(Drop_outs = case_when(min_prop_reads > 0 & max_prop_reads > 0 ~"Three reps above zero",
+                              min_prop_reads == 0 & max_prop_reads > 0 ~"One rep is zero",
+                              min_prop_reads == 0 & max_prop_reads == 0 ~"All zero")) -> calcofi_dropout_prop
+
+
+calcofi_use %>% 
+      filter(., !is.na(mifish_reads)) %>%  
+    group_by(ID_mifish,station_id,ext_rep) %>% 
+  left_join(calcofi_dropout_prop) -> plotting_drop_outs
+  
+
+plotting_drop_outs %>% 
+  ggplot(aes(x=Species, y=prop_reads, color=alpha, shape=Drop_outs)) +geom_point() +
+  theme(axis.text.x = element_text(angle =30, hjust=1)) +facet_wrap(larval_abundance~Drop_outs) +scale_colour_viridis_c()
+
+
+
+ggsave(
+file = here::here("figures", "drop_outs_alpha.png"),
+width = 14,
+height = 8
+)
+
+```
+
+
+```{r}
+  
+calcofi_use %>% 
+      ungroup() %>% 
+  filter(., !is.na(mifish_reads)) %>% 
+  group_by(ID_mifish,station_id,ext_rep) %>% 
+  dplyr::summarise(meanReads = mean(mifish_reads),
+            sdReads = sd(mifish_reads)) %>%
+  filter(meanReads > 0) %>% 
+  ungroup() %>% 
+  mutate(cvReads = sdReads/meanReads) %>% 
+  drop_na() -> cv_calcofi
+
+
+calcofi_use %>% 
+      filter(., !is.na(mifish_reads)) %>%  
+    group_by(ID_mifish,station_id,ext_rep) %>% 
+  left_join(cv_calcofi) %>% 
+  filter(!is.na(cvReads)) -> plotting_cv
+
+calcofi_use %>% 
+  dplyr::select(ID_mifish, larval_abundance, alpha, station_id,Sample_ID,ext_rep) %>% 
+  mutate(alpha_group = case_when(alpha > 1  ~"High",
+                              alpha >.95  ~"Medium",
+                              TRUE ~"Low"))-> larval_abundance_and_alpha
+
+  
+
+plotting_cv%>% 
+  mutate(., tech_rep=as.character(tech_rep)) %>% 
+  left_join(larval_abundance_and_alpha) %>% 
+  ungroup()  %>% 
+  ggplot(aes(y=log(mifish_reads), x=log(larval_counts), group= alpha_group, color=alpha_group, fill=alpha_group)) +geom_point() + geom_smooth() 
+
+
+
+ggsave(
+file = here::here("figures", "counts_vs_reads_amp_eff_.png"),
+width = 14,
+height = 8
+)
+```
+
+
+
