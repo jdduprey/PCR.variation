@@ -25,9 +25,13 @@ Single argument is an Input dataframe with the following columns:
 ```{r tech variability as function of amp efficiency and biomass}
 TechDrops.vs.CountsAmps <- function(input_df){
   
-total_binned_df <- total_binned_df <- data.frame(input_df,abundance_bin=cut(input_df$abundance,unique(as.numeric(quantile(input_df$abundance, probs = seq(0, 1, 1/8)))),include.lowest=TRUE),  ampef_bin = cut(input_df$amp_ef,unique(as.numeric(quantile(input_df$amp_ef, probs = seq(0, 1, 1/8)))),include.lowest=TRUE))  # sort abundance and amp efficiency into quantiles with all input data
+total_binned_df <- data.frame(input_df,abundance_bin=cut(input_df$abundance,unique(as.numeric(quantile(input_df$abundance, na.rm = T, probs = seq(0, 1, 1/8)))),include.lowest=TRUE),  ampef_bin = cut(input_df$amp_ef,unique(as.numeric(quantile(input_df$amp_ef,na.rm = T, probs = seq(0, 1, 1/8)))),include.lowest=TRUE))  # sort abundance and amp efficiency into quantiles with all input data
+
+
+
 
 unique_bins <- unique(total_binned_df[,c("abundance_bin","ampef_bin" )]) # all unique amp bin and abundance bin combinations
+unique_bins <- unique_bins[complete.cases(unique_bins), ]
 
 list <- replicate(length(unique_bins[,1]), rep(NA, length=nrow(total_binned_df)), simplify = FALSE) # list of empty vectors (length of input dataframe), one vector for all the row indices corresponding to an unique amp&abundance bin combination
 
@@ -43,38 +47,45 @@ for(i in 1:length(unique_bins[,1])){
   specific_bin_df <- total_binned_df[bin_indices,] # subset data to only include given abundance/amp bin, get prop of dropouts
   
   dropouts <- c(which(specific_bin_df$tech_1 == 0),
-              which(specific_bin_df$tech_2 == 0),
-              which(specific_bin_df$tech_3 == 0))
+                which(specific_bin_df$tech_2 == 0),
+                which(specific_bin_df$tech_3 == 0)) # need to filter out tech reps with all zeros
   propdrops[i,3] <- length(unique(dropouts)) / nrow(specific_bin_df)
-  
+  print(length(unique(dropouts)) / nrow(specific_bin_df))
 }
 
 # just adding numerical factor levels to the bin factor levels
-outputdf <- cbind(propdrops, unique(cbind(bin_levels_list$abundance_bin, bin_levels_list$ampef_bin)))
+outputdf <- cbind(propdrops, unique(cbind(as.numeric(propdrops$abundance_bin), as.numeric(propdrops$ampef_bin))))
 
 # plot 
 
 print(levelplot(dropout_proportion ~ `2`*`1`, # "2" is amp, "1" is abundance
-          scales=list(x= list(at=sort(unique(outputdf$`2`))),
-                      y= list(at=sort(unique(outputdf$`1`)))),
-          colorkey= list(title= "Proportion of Dropouts"),
-          data=outputdf,
-          xlab="amplification efficiency bins",
-          ylab = "abundance bins",
-          main="",
-          col.regions = viridis(100)))
+                scales=list(x= list(at=sort(unique(outputdf$`2`))),
+                            y= list(at=sort(unique(outputdf$`1`)))),
+                colorkey= list(title= "Proportion of Dropouts"),
+                data=outputdf,
+                xlab="amplification efficiency bins",
+                ylab = "abundance bins",
+                main="",
+                col.regions = viridis(100)))
 
 return(outputdf)
 }
-
-# should relable w/ actual bins, and figure out way to make more than 4 bins (how many hm) 
 ```
 
 ```{r run function w dataset}
-CalCofi_mock_complete <- read.csv(here("special_issue_manuscript","Data", "complete_cal_props_wide.csv"))
+CalCofi_mock_complete <- read.csv(here("special_issue_manuscript","Data", "complete_cal_props_long.csv"))
 
-CalCofi_mock_complete <- CalCofi_mock_complete %>% rename(c("abundance" = larval_counts, "tech_1" = X1, "tech_2" = X2, "tech_3" = X3))
+# make ID column for each "asv"
+CalCofi_mock_complete_IDrow <- CalCofi_mock_complete %>% unite(fullID, c(bio_rep,ID_mifish, ID_microscopy, ext_rep), sep=".") 
+CalCofi_mock_complete_IDrow$fullID <- str_sub(CalCofi_mock_complete_IDrow$fullID, 2, -3)
 
+# pivot wide
+CalCofi_wide_reads_counts <- CalCofi_mock_complete_IDrow %>%
+  select(fullID,tech_rep, larval_counts, mean_log_alpha, mifish_reads) %>% 
+  pivot_wider(names_from = tech_rep, values_from = mifish_reads) %>% 
+  select(-fullID)
+
+CalCofi_mock_complete <- CalCofi_wide_reads_counts %>% rename(c("amp_ef" = mean_log_alpha ,"abundance" = larval_counts, "tech_1" = "1", "tech_2" = "2", "tech_3" = "3"))
 
 
 output <- TechDrops.vs.CountsAmps(input_df = CalCofi_mock_complete)
