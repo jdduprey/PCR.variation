@@ -71,8 +71,10 @@ return(outputdf)
 ```
 
 ```{r run function w dataset}
-Joe_data <- read.csv(here("special_issue_manuscript","Data", "gold_example_data.csv"))
+CalCofi_mock_complete <- read.csv(here("special_issue_manuscript","Data", "calcofi_reads_counts_wide.csv"))
 
-output <- TechDrops.vs.CountsAmps(input_df = Joe_data)
+CalCofi_mock_complete <- CalCofi_mock_complete %>% rename(c("abundance" = larval_counts, "tech_1" = X1, "tech_2" = X2, "tech_3" = X3))
+
+output <- TechDrops.vs.CountsAmps(input_df = CalCofi_mock_complete)
 ```
 
