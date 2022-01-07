@@ -68,7 +68,9 @@ TechDrops.vs.CountsAmps <- function(input_df, countBreaks, ampBreaks){
                   xlab="amplification efficiency bins",
                   ylab = "abundance bins",
                   main="",
-                  col.regions = viridis(100)))
+                  col.regions = viridis(100))) +
+                  scales=list(x=list(at=c(1:countBreaks), labels=letters[1:4]),
+                             y=list(at=c(1:ampBreaks), labels=letters[1:4]))
   
   return(outputdf)
 }
