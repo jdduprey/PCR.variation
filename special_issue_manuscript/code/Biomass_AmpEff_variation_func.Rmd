@@ -25,8 +25,7 @@ Single argument is an Input dataframe with the following columns:
 ```{r tech variability as function of amp efficiency and biomass}
 TechDrops.vs.CountsAmps <- function(input_df){
   
-total_binned_df <- data.frame(input_df,abundance_bin=cut(input_df$abundance,as.numeric(quantile(input_df$abundance)),include.lowest=TRUE), 
-ampef_bin = cut(input_df$amp_ef,unique(as.numeric(quantile(input_df$amp_ef))),include.lowest=TRUE)) # sort abundance and amp efficiency into quantiles with all input data
+total_binned_df <- total_binned_df <- data.frame(input_df,abundance_bin=cut(input_df$abundance,unique(as.numeric(quantile(input_df$abundance, probs = seq(0, 1, 1/8)))),include.lowest=TRUE),  ampef_bin = cut(input_df$amp_ef,unique(as.numeric(quantile(input_df$amp_ef, probs = seq(0, 1, 1/8)))),include.lowest=TRUE))  # sort abundance and amp efficiency into quantiles with all input data
 
 unique_bins <- unique(total_binned_df[,c("abundance_bin","ampef_bin" )]) # all unique amp bin and abundance bin combinations
 
