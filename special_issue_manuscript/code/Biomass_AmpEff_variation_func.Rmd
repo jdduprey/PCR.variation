@@ -61,8 +61,8 @@ TechDrops.vs.CountsAmps <- function(input_df, countBreaks, ampBreaks){
   # plot 
   
   print(levelplot(dropout_proportion ~ `2`*`1`, # "2" is amp, "1" is abundance
-                  scales=list(x= list(at=sort(unique(outputdf$`2`))),
-                              y= list(at=sort(unique(outputdf$`1`)))),
+                  scales=list(x= list(at=sort(unique(outputdf$`2`)), labels = c("Low")),
+                              y= list(at=sort(unique(outputdf$`1`)), labels = c("Low"))),
                   colorkey= list(title= "Proportion of Dropouts"),
                   data=outputdf,
                   xlab="amplification efficiency bins",
