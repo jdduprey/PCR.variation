@@ -1,0 +1,136 @@
+---
+title: 'Signal, Noise, and Amplicons: PaperOutline'
+author: "Kelly Lab"
+date: "Created Early 2022; Edited 11 Jan 2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MCMCpack)
+library(tidyverse)
+
+```
+
+
+# Abstract
+
+Read-abundances from metabarcoding studies only indirectly reflect underlying biological abundances, because we observe sequencing reads only after a compounding series of processes between DNA production and observation. These processes include DNA collection and subsampling, PCR, and further subsampling before and during sequencing. The net result of this chain of steps is that our observations of amplicon abundances are noisy, generally having high variance among technical replicates arising from the same biological sample.
+	We model PCR and related processes in [paper #1]. In this companion paper, we evaluate observation variance — the unmodeled noise among technical replicates. We discuss mechanisms likely to explain much of the observation variance in published metabarcoding datasets, focusing on a conceptual model in which this variance is linked to the underlying concentration of a species’ DNA, and to the amplification efficiency of each taxon for a given primer set. Consistent with our observations, this model predicts the greatest observation variance in for low-abundance species with high amplification efficiencies.
+	
+# Introduction
+
+The signal-to-noise ratio of any technique determines its power of detection; for any set of observations, we must be able to distinguish random variation from real, non-random signal reflecting a phenomenon of interest. In the case of metabarcoding and similar amplicon-based studies across a range of life-science fields, it has become clear that (1) our observations are not linearly related to the underlying biology of interest, and (2) those observations are noisy, with many having relatively high variance as a function of mean expectations. 
+
+Modeling PCR and linked processes largely explains amplicon counts when variance among technical replicates is low [CITE paper #1]. However, when variance among replicates is high, this process model fails -- by definition -- to explain the underlying mechanisms at play. 
+
+[The Shelton model] accounts for the laboratory-based processes leading from a DNA extract to a set of observations of sequenced reads. That mechanistic model is stochastic, implying both an expected value for a number of amplicons observed for a taxon -- $\mu$ -- given underlying mechanistic PCR parameters and starting DNA proportions, and some observation variance around that expected value. 
+
+Here, we evaluate the signal-to-noise ratio in metabarcoding studies, using empirical data to develop a qualitative understanding of how observation variance arises, how we might recognize uninformative data in practice, and conversely, the conditions under which we might confidently detect underlying biological signal. 
+
+We propose a conceptual model in which variance in observed reads between replicates of the same biological sample, for a given species, is a product of 1) the species' template DNA concentration, and 2) the amplification efficiency of that template for the primer used, relative to the efficiency of other species present in the same. These two factors are modified by the sample's overall read-depth: all else being equal, species that enjoy greater read-depth (i.e., greater sampling effort) will experience less sampling stochasticity, and therefore lower variance among replicates.  
+
+Given that sampling effort affects all taxa in the same direction, we can visualize the first two factors as a 2x2 matrix (Fig 1) — with DNA concentration and amplification efficiency divided into conceptual bins of "low" or "high" on respective axes. We expect a given species' matrix quadrant to explain variance in that species' DNA concentration among technical replicates. 
+
+
+### High amplification efficiency and high biomass: (Type I): low variability, many reads
+
+### High amplification efficiency and low biomass: (Type II): high variability, many reads
+
+### Low amplification efficiency and high biomass: (Type III): low variability, few reads
+
+### Low amplification efficiency and low biomass: (Type IV): high variability, but so few reads you might not notice; low ability to detect
+
+This qualitative model (consistent with Egozcue et al 2020) suggests that much of the unexplained variance among technical PCR replicates stems from sampling stochasticity among rare molecules. If we imagine the process of creating technical replicates from a common biological sample as being a multinomial process -- in which molecules of a given species are sampled in according to their underlying proportions in the biological community -- rare molecules will be sampled in one ``replicate'' and not in another. The result is apparent dropouts of species among technical replicates. Where amplification efficiency of these species is high, the pattern can be especially striking: high read numbers in one replicate, zero in another.  [Figure 2]
+
+Scaling these observations up to the level of the entire biological community as represented in metabarcoding samples, this process yields large differences in community composition (e.g., Bray-Curtis dissimilarity) among replicates when PCR primers target rare templates (e.g., vertebrates or specific vertebrates such as fish, in a marine environment). Broad-spectrum primers targeting a swath of different templates (e.g., eukaryotes) are likely to have lower variance among replicates driven by fewer dropouts, merely because the underlying template molecules are much more common (e.g., diatoms in the marine environment). 
+
+
+```{r Figure 2, echo = F}
+set.seed(108)
+#Type I: high a, high biomass; low variance and high correlation
+obs_I <- rnbinom(100, mu = 1e4, size = 1)
+exp_I <- rnbinom(length(obs_I), mu = obs_I, size = 10)
+
+#Type II: high a, low biomass; high variance and poor correlation
+obs_II <- rnbinom(100, mu = 1e3, size = .5)
+exp_II <- rnbinom(length(obs_II), mu = obs_II, size = .1)
+
+#Type III: low a, high biomass; low variance and high correlation, but few reads
+obs_III <- rnbinom(100, mu = 20, size = .5)
+exp_III <- rnbinom(length(obs_III), mu = obs_III, size = 10)
+
+#Type IV: low a, low biomass; high variance and poor correlation, but few reads
+obs_IV <- rnbinom(100, mu = 20, size = 1)
+exp_IV <- rnbinom(length(obs_IV), mu = obs_IV, size = .1)
+
+data.frame(obs_I, exp_I, obs_II, exp_II, obs_III, exp_III, obs_IV, exp_IV) %>% 
+  mutate(idx = 1:nrow(.)) %>% 
+  pivot_longer(-idx) %>% 
+  separate(name, into = c("name", "Type")) %>% 
+  pivot_wider(names_from = name, values_from = value) %>% 
+  ggplot(aes(x = log(obs), y = log(exp), color = Type)) +
+    geom_point()
+
+
+```
+
+
+
+
+# Methods 
+
+ref Shelton model
+
+Mock communities let us test this -- we have known concentrations and well-estimated amp efficiencies. 
+
+In empirical data without mock communities, we can use taxonomic identity as a proxy for underlying commonness: we expect diatoms, for example, to be more common than fish.  Further, we can use observed read-number as a proxy for amplification efficiency.  We expect fish with high read-counts to be highly variable among technical replicates; we expect diatoms with equivalent read-counts to be less variable.  [This seems like a bridge too far... RPK]
+
+
+
+We hypothesized that variation among technical replicates at the species-level is greatest when a taxon is rare, part of a sample with low read depth, and when the taxon's DNA has a high amplification efficiency relative to a given primer. We tested these hypotheses on two datasets: field samples collected by Gallego et al. (2020), and a mock community created for the California Cooperative Oceanic Fisheries Investigations (how to describe?).
+
+Gallego et al. (2020) collected water samples from various sites in Washington State's Hood Canal and San Juan Islands, using eDNA to compare communities across a gradient of environmental conditions. Each biological replicate is associated with three technical replicates, which allowed us to quantify variation with respect to DNA concentration and sample read depth. [ + what statistics we actually used ]
+
+[ Introduce mock community ] This high-resolution data was used to measure the effect of amplification efficiency on variability associated with rare taxa.
+
+linking ASV-level observation variation to community-level variation (Bray-Curtis) via simulation
+
+# Results
+
+Simulations show where observation variance is so large that there's little correlation between expected and observed amplicon counts. Figure 1. 
+
+How does this compare to empirical datasets?  Show a bunch.  Note that we need technical replication for this.  
+
+Note further that there's a strong relationship between CV and Phi, such that even if you don't use a fancy model, you can make a good guess at how noisy your data are, and accordingly, your likely signal::noise ratio.  (Indeed, this is sort of what CV is...)
+
+Then show a simulation of some particular examples of low/med/high read-counts and low/med/high CV, and evaluate confidence intervals on those, to see whether or not we might detect a given effect size. 
+
+Zooming out, here's how individual ASV variation scales up into Bray-Curtis distances among replicate samples. 
+
+Test conceptual model in simulated datasets... 2x2 matrix.  Then do the same in empirical datasets. 
+
+
+# Conclusion
+
+So, here's when you can and can't trust your data. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
