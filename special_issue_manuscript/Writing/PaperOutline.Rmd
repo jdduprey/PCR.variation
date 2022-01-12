@@ -108,8 +108,19 @@ linking ASV-level observation variation to community-level variation (Bray-Curti
 # Results
 
 
+```{r Figure 3, echo = F}
+knitr::include_graphics(here("figures", ""))
+```
 
 
+```{r Figure 4, echo = F}
+knitr::include_graphics(here("figures", "drop_prop_logistic.png"))
+```
+
+
+```{r Figure 5, echo = F}
+knitr::include_graphics(here("figures", ""))
+```
 
 
 
