@@ -29,9 +29,7 @@ Modeling PCR and linked processes largely explains amplicon counts when variance
 Here, we use empirical data to develop a qualitative understanding of how observation variance arises, how we might recognize uninformative data in practice, and conversely, the conditions under which we might confidently detect underlying biological signal. 
 
 We propose a conceptual model in which variance in observed reads between replicates of the same biological sample, for a given species, is a product of 1) the species' template DNA concentration, and 2) the amplification efficiency of that template for the primer used, relative to the efficiency of other species present in the same. These two factors are modified by the sample's overall read-depth: all else being equal, species that enjoy greater read-depth (i.e., greater sampling effort) will experience less sampling stochasticity, and therefore lower variance among replicates.  
-
 Given that sampling effort affects all taxa in the same direction, we can visualize the first two factors as a 2x2 matrix (Fig 1) — with DNA concentration and amplification efficiency divided into conceptual bins of "low" or "high" on respective axes. We expect a given species' matrix quadrant to explain variance in that species' DNA concentration among technical replicates. 
-
 
 ### High amplification efficiency and high biomass: (Type I): low variability, many reads
 
@@ -47,7 +45,7 @@ Where amplification efficiency of these species is high, the pattern can be stri
 
 Scaling these observations up to the level of the entire biological community as represented in metabarcoding samples, this process yields large differences in community composition (e.g., Bray-Curtis dissimilarity) among replicates when PCR primers target rare templates (e.g., vertebrates or specific vertebrates such as fish, in a marine environment). Broad-spectrum primers targeting a swath of different templates (e.g., eukaryotes) are likely to have lower variance among replicates driven by fewer dropouts, merely because the underlying template molecules are much more common (e.g., diatoms in the marine environment). 
 
-Below, we use multiple sources (**this is the goal, no?**) of empirical data to test our proposed mechanism of observation variance among technical replicates, with the ultimate goal of deciding when we can, and cannot, trust metabarcoding data.    
+Below, we use multiple sources (**this is the goal, no?HC**) of empirical data to test our proposed mechanism of observation variance among technical replicates, with the ultimate goal of deciding when we can, and cannot, trust metabarcoding data.    
 
 ```{r Figure 2, echo = F}
 set.seed(108)
@@ -79,25 +77,22 @@ data.frame(obs_I, exp_I, obs_II, exp_II, obs_III, exp_III, obs_IV, exp_IV) %>%
 ```
 
 
-
-
 # Methods 
 
-ref Shelton model
+[The Shelton model], which links a species' metabarcoding output (set of observed sequenced reads) to its original template DNA concentration by modeling laboratory processes, functions when variation among technical replicates is reasonably low. Unexpectedly high variability causes the model to fail; we propose this variability is a function of original DNA concentration, amplification efficiency, and sample read depth for any given species. Mock communities let us test this -- they have known concentrations and well-estimated amplication efficiencies. 
 
-Mock communities let us test this -- we have known concentrations and well-estimated amp efficiencies. 
-
-In empirical data without mock communities, we can use taxonomic identity as a proxy for underlying commonness: we expect diatoms, for example, to be more common than fish.  Further, we can use observed read-number as a proxy for amplification efficiency.  We expect fish with high read-counts to be highly variable among technical replicates; we expect diatoms with equivalent read-counts to be less variable.  [This seems like a bridge too far... RPK]
+As part of the California Cooperative Oceanic Fisheries Investigations (CalCOFI), Gold et al. (IN PREP) used morphological and molecular methods to analyze the response of ichthyoplankton in the California Current Large Marine Ecosystem to ocean warming. Ichthyoplankton samples were collected during CalCOFI research cruises over two decades (1996; 1998-2019). Part of each sample was preserved in Tris-buffered 95% ethanol for metabarcoding using the Mifish primer set. The remaining part was preserved in sodium borate-buffered 2% formaldehyde for microscopy-derived species identification and abundance (number of larvae per species per jar). **I might be (probably am) missing important details here HC** Amplification efficiency was estimated for each species during PCR cycling in the metabarcoding process.
 
 
 
-We hypothesized that variation among technical replicates at the species-level is greatest when a taxon is rare, part of a sample with low read depth, and when the taxon's DNA has a high amplification efficiency relative to a given primer. We tested these hypotheses on two datasets: field samples collected by Gallego et al. (2020), and a mock community created for the California Cooperative Oceanic Fisheries Investigations (how to describe?).
 
-Gallego et al. (2020) collected water samples from various sites in Washington State's Hood Canal and San Juan Islands, using eDNA to compare communities across a gradient of environmental conditions. Each biological replicate is associated with three technical replicates, which allowed us to quantify variation with respect to DNA concentration and sample read depth. [ + what statistics we actually used ]
+In empirical data without mock communities, we can use taxonomic identity as a proxy for underlying commonness: we expect diatoms, for example, to be more common than fish.  Further, we can use observed read-number as a proxy for amplification efficiency.  We expect fish with high read-counts to be highly variable among technical replicates; we expect diatoms with equivalent read-counts to be less variable.[This seems like a bridge too far... RPK]
 
-[ Introduce mock community ] This high-resolution data was used to measure the effect of amplification efficiency on variability associated with rare taxa.
+Gallego et al. (2020) collected water samples from various sites in Washington State's Hood Canal and San Juan Islands, using eDNA to compare communities across a gradient of environmental conditions. Each biological replicate is associated with three technical replicates, which allowed us to quantify variation with respect to sample read depth.
+
 
 linking ASV-level observation variation to community-level variation (Bray-Curtis) via simulation
+**possibly instead, we get Bray-Curtis among technical replicates (comm-level) for datasets using different primers...see if specific primers (rare) == more distant tech rep communities...we don't need original biomass or amp eff for this**
 
 # Results
 
