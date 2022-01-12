@@ -1,7 +1,10 @@
 ---
 title: "Biomass_AmpEff_variation_func"
+date: 1/5/22 
 output: html_document
 ---
+
+Refer instead to PCR.variation/special_issue_manuscript/code/Make_Tile_Plots
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
