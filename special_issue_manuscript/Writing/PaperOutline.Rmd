@@ -29,7 +29,7 @@ Modeling PCR and linked processes largely explains amplicon counts when variance
 Here, we use empirical data to develop a qualitative understanding of how observation variance arises, how we might recognize uninformative data in practice, and conversely, the conditions under which we might confidently detect underlying biological signal. 
 
 We propose a conceptual model in which variance in observed reads between replicates of the same biological sample, for a given species, is a product of 1) the species' template DNA concentration, and 2) the amplification efficiency of that template for the primer used, relative to the efficiency of other species present in the same. These two factors are modified by the sample's overall read-depth: all else being equal, species that enjoy greater read-depth (i.e., greater sampling effort) will experience less sampling stochasticity, and therefore lower variance among replicates.  
-Given that sampling effort affects all taxa in the same direction, we can visualize the first two factors as a 2x2 matrix (Fig 1) — with DNA concentration and amplification efficiency divided into conceptual bins of "low" or "high" on respective axes. We expect a given species' matrix quadrant to explain variance in that species' DNA concentration among technical replicates. 
+Given that sampling effort affects all taxa in the same direction, we can visualize the first two factors as a 2x2 matrix (Fig 1) — with DNA concentration and amplification efficiency divided into conceptual bins of "low" or "high" on respective axes. We expect a given species' matrix quadrant to explain variance in that species' sequenced read abundance among technical replicates. 
 
 ### High amplification efficiency and high biomass: (Type I): low variability, many reads
 
@@ -79,17 +79,22 @@ data.frame(obs_I, exp_I, obs_II, exp_II, obs_III, exp_III, obs_IV, exp_IV) %>%
 
 # Methods 
 
-[The Shelton model], which links a species' metabarcoding output (set of observed sequenced reads) to its original template DNA concentration by modeling laboratory processes, functions when variation among technical replicates is reasonably low. Unexpectedly high variability causes the model to fail; we propose this variability is a function of original DNA concentration, amplification efficiency, and sample read depth for any given species. Mock communities let us test this -- they have known concentrations and well-estimated amplication efficiencies. 
+[The Shelton model] -- which links a species' metabarcoding output (set of observed sequenced reads) to its original template DNA concentration by modeling laboratory processes -- functions when variation among technical replicates is reasonably low. Unexpectedly high variability causes the model to fail; we propose this variability is a function of original DNA concentration, amplification efficiency, and sample read depth for any given species. Mock communities let us test this, as they have known concentrations and well-estimated amplication efficiencies. 
 
-As part of the California Cooperative Oceanic Fisheries Investigations (CalCOFI), Gold et al. (IN PREP) used morphological and molecular methods to analyze the response of ichthyoplankton in the California Current Large Marine Ecosystem to ocean warming. Ichthyoplankton samples were collected during CalCOFI research cruises over two decades (1996; 1998-2019). Part of each sample was preserved in Tris-buffered 95% ethanol for metabarcoding using the Mifish primer set. The remaining part was preserved in sodium borate-buffered 2% formaldehyde for microscopy-derived species identification and abundance (number of larvae per species per jar). **I might be (probably am) missing important details here HC** Amplification efficiency was estimated for each species during PCR cycling in the metabarcoding process.
+As part of the California Cooperative Oceanic Fisheries Investigations (CalCOFI), Gold et al. (IN PREP) used morphological and molecular methods to analyze the response of ichthyoplankton in the California Current Large Marine Ecosystem to ocean warming, creating a mock community of larval fishes in the process.  
 
+Ichthyoplankton samples were collected during CalCOFI research cruises over two decades (1996; 1998-2019). Part of each sample was preserved in Tris-buffered 95% ethanol for metabarcoding using the Mifish primer set, with three technical replicates conducted per sample. Amplification efficiency was estimated for each species by generating standard calibration curves. The remaining part of each sample was preserved in sodium borate-buffered 2% formaldehyde for microscopy-derived species identification and abundance (number of larvae per species per jar).  
+.**I probably am missing important details here/slightly speaking out of my ass HC**
 
+Using CalCOFI's mock community -- including larval counts, amplification efficiency, and sequenced reads within technical replicates -- we tested whether a species' position in our  our hypothesized matrix explained variability in that species' read abundance among technical.   
+GO INTO WHAT WE DID (dropouts etc)
 
+ ---- Below = moncho's data (taxa vs. dropouts), maybe we put a pin in that for now. ----
 
 In empirical data without mock communities, we can use taxonomic identity as a proxy for underlying commonness: we expect diatoms, for example, to be more common than fish.  Further, we can use observed read-number as a proxy for amplification efficiency.  We expect fish with high read-counts to be highly variable among technical replicates; we expect diatoms with equivalent read-counts to be less variable.[This seems like a bridge too far... RPK]
-
 Gallego et al. (2020) collected water samples from various sites in Washington State's Hood Canal and San Juan Islands, using eDNA to compare communities across a gradient of environmental conditions. Each biological replicate is associated with three technical replicates, which allowed us to quantify variation with respect to sample read depth.
 
+ ---- Community Level ----
 
 linking ASV-level observation variation to community-level variation (Bray-Curtis) via simulation
 **possibly instead, we get Bray-Curtis among technical replicates (comm-level) for datasets using different primers...see if specific primers (rare) == more distant tech rep communities...we don't need original biomass or amp eff for this**
