@@ -29,6 +29,7 @@ Modeling PCR and linked processes largely explains amplicon counts when variance
 Here, we use empirical data to develop a qualitative understanding of how observation variance arises, how we might recognize uninformative data in practice, and conversely, the conditions under which we might confidently detect underlying biological signal. 
 
 We propose a conceptual model in which variance in observed reads between replicates of the same biological sample, for a given species, is a product of 1) the species' template DNA concentration, and 2) the amplification efficiency of that template for the primer used, relative to the efficiency of other species present in the same. These two factors are modified by the sample's overall read-depth: all else being equal, species that enjoy greater read-depth (i.e., greater sampling effort) will experience less sampling stochasticity, and therefore lower variance among replicates.  
+
 Given that sampling effort affects all taxa in the same direction, we can visualize the first two factors as a 2x2 matrix (Fig 1) — with DNA concentration and amplification efficiency divided into conceptual bins of "low" or "high" on respective axes. We expect a given species' matrix quadrant to explain variance in that species' sequenced read abundance among technical replicates. 
 
 ### High amplification efficiency and high biomass: (Type I): low variability, many reads
@@ -41,7 +42,7 @@ Given that sampling effort affects all taxa in the same direction, we can visual
 
 This qualitative model (consistent with Egozcue et al 2020) suggests that much of the unexplained variance among technical PCR replicates stems from sampling stochasticity among rare molecules. If we imagine the process of creating technical replicates from a common biological sample as being a multinomial process -- in which molecules of a given species are sampled in according to their underlying proportions in the biological community -- rare molecules may be sampled in one ``replicate'' and not in another. The result is apparent presence-absence disagreement of species among technical replicates. 
 
-Where amplification efficiency of these species is high, the pattern can be striking: high read numbers in one replicate, zero in another [Figure 2]. But we expect the greatest number of dropouts to be associated with rare, low amplification efficiency species - these molecules, if included in a technical replicate, may fail to amplify at all.  **this last sentence may not be true - circle back HC**
+Where amplification efficiency of these species is high, the pattern can be striking: high read numbers in one replicate, zero in another [Figure 2]. But we expect the greatest number of dropouts to be associated with rare, low amplification efficiency species - these molecules, if included in a technical replicate, may fail to amplify at all.  **this last sentence may not be true, but see my comment in the slack channel - circle back HC**
 
 Scaling these observations up to the level of the entire biological community as represented in metabarcoding samples, this process yields large differences in community composition (e.g., Bray-Curtis dissimilarity) among replicates when PCR primers target rare templates (e.g., vertebrates or specific vertebrates such as fish, in a marine environment). Broad-spectrum primers targeting a swath of different templates (e.g., eukaryotes) are likely to have lower variance among replicates driven by fewer dropouts, merely because the underlying template molecules are much more common (e.g., diatoms in the marine environment). 
 
@@ -79,17 +80,22 @@ data.frame(obs_I, exp_I, obs_II, exp_II, obs_III, exp_III, obs_IV, exp_IV) %>%
 
 # Methods 
 
-[The Shelton model] -- which links a species' metabarcoding output (set of observed sequenced reads) to its original template DNA concentration by modeling laboratory processes -- functions when variation among technical replicates is reasonably low. Unexpectedly high variability causes the model to fail; we propose this variability is a function of original DNA concentration, amplification efficiency, and sample read depth for any given species. Mock communities let us test this, as they have known concentrations and well-estimated amplication efficiencies. 
+[The Shelton model] -- which links a species' metabarcoding output (set of observed sequenced reads) to original template DNA concentration by modeling laboratory processes -- functions when variation among technical replicates is reasonably low. Unexpectedly high variability causes the model to fail; we propose this variability is a function of original DNA concentration, amplification efficiency, and sample read depth for any given species. Mock communities let us test this, as they have known concentrations and well-estimated amplication efficiencies. 
 
 As part of the California Cooperative Oceanic Fisheries Investigations (CalCOFI), Gold et al. (IN PREP) used morphological and molecular methods to analyze the response of ichthyoplankton in the California Current Large Marine Ecosystem to ocean warming, creating a mock community of larval fishes in the process.  
 
 Ichthyoplankton samples were collected during CalCOFI research cruises over two decades (1996; 1998-2019). Part of each sample was preserved in Tris-buffered 95% ethanol for metabarcoding using the Mifish primer set, with three technical replicates conducted per sample. Amplification efficiency was estimated for each species by generating standard calibration curves. The remaining part of each sample was preserved in sodium borate-buffered 2% formaldehyde for microscopy-derived species identification and abundance (number of larvae per species per jar).  
-.**I probably am missing important details here/slightly speaking out of my ass HC**
+**I probably am missing important details here/slightly speaking out of my arse HC**
 
-Using CalCOFI's mock community -- including larval counts, amplification efficiency, and sequenced reads within technical replicates -- we tested whether a species' position in our  our hypothesized matrix explained variability in that species' read abundance among technical.   
-GO INTO WHAT WE DID (dropouts etc)
+Using CalCOFI's mock community -- including larval counts, amplification efficiency, and sequenced reads within technical replicates -- we tested whether a species' position in our hypothesized matrix explained variability in that species' read abundance among technical replicates.
 
- ---- Below = moncho's data (taxa vs. dropouts), maybe we put a pin in that for now. ----
+We can visualize variability among technical replicates within a mock community
+by either looking at the spread of read abundance values, or the amount of presence-absence disagreement. 
+
+The former should indicate whether rare molecules result in greater magnitudes of difference between technical replicates, and whether a high amplification efficiency amplifies this effect. To this end, we use coefficient of variation. The latter metric -- presence-absence disagreement -- relates to the frequency of dropouts among a set of technical replicates, which we propose increases with low DNA concentration and low amplification efficiency (**again: revisit this HC**). We represent this using the proportion of species (sample-specific) which had 1 to 3 dropouts among technical replicates.    
+
+
+ ---- Below = moncho's data (Talk about taxa vs. dropouts), maybe we put a pin in that for now. ----
 
 In empirical data without mock communities, we can use taxonomic identity as a proxy for underlying commonness: we expect diatoms, for example, to be more common than fish.  Further, we can use observed read-number as a proxy for amplification efficiency.  We expect fish with high read-counts to be highly variable among technical replicates; we expect diatoms with equivalent read-counts to be less variable.[This seems like a bridge too far... RPK]
 Gallego et al. (2020) collected water samples from various sites in Washington State's Hood Canal and San Juan Islands, using eDNA to compare communities across a gradient of environmental conditions. Each biological replicate is associated with three technical replicates, which allowed us to quantify variation with respect to sample read depth.
@@ -97,9 +103,17 @@ Gallego et al. (2020) collected water samples from various sites in Washington S
  ---- Community Level ----
 
 linking ASV-level observation variation to community-level variation (Bray-Curtis) via simulation
-**possibly instead, we get Bray-Curtis among technical replicates (comm-level) for datasets using different primers...see if specific primers (rare) == more distant tech rep communities...we don't need original biomass or amp eff for this**
+**possibly instead, we get Bray-Curtis among technical replicates (comm-level) for datasets using different primers...see if specific primers (rare) == more distant tech rep communities...we don't need original biomass or amp eff for this HC**
 
 # Results
+
+
+
+
+
+
+
+
 
 Simulations show where observation variance is so large that there's little correlation between expected and observed amplicon counts. Figure 1. 
 
