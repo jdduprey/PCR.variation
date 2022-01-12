@@ -87,7 +87,7 @@ As part of the California Cooperative Oceanic Fisheries Investigations (CalCOFI)
 Ichthyoplankton samples were collected during CalCOFI research cruises over two decades (1996; 1998-2019). Part of each sample was preserved in Tris-buffered 95% ethanol for metabarcoding using the Mifish primer set, with three technical replicates conducted per sample. Amplification efficiency was estimated for each species by generating standard calibration curves. The remaining part of each sample was preserved in sodium borate-buffered 2% formaldehyde for microscopy-derived species identification and abundance (number of larvae per species per jar).  
 **I probably am missing important details here/slightly speaking out of my arse HC**
 
-Using CalCOFI's mock community -- including larval counts, amplification efficiency, and sequenced reads within technical replicates -- we tested whether a species' position in our hypothesized matrix explained variability in that species' read abundance among technical replicates.
+Using CalCOFI's mock community -- including larval counts, amplification efficiency, and sequenced reads within technical replicates -- we tested whether a species' position in our hypothesized matrix, and its sample's read depth, explained variability in that species' read abundance among technical replicates.
 
 We can visualize variability among technical replicates within a mock community
 by either looking at the spread of read abundance values, or the amount of presence-absence disagreement. 
@@ -107,23 +107,30 @@ linking ASV-level observation variation to community-level variation (Bray-Curti
 
 # Results
 
-
-```{r Figure 3, echo = F}
-knitr::include_graphics(here("figures", ""))
+Figure 3 shows the the average number of dropouts within a set of technical replicates declining with increasing read depth, as expected. It should be noted that the upper half of the distribution of read depth only makes up 4% of data points. **think of better way to graph this**  
+```{r Figure 3 read depth, echo = F}
+knitr::include_graphics(here("figures", "readDepth_propdrops.png"))
 ```
 
+Figure 4 shows that the the average number of dropouts within a set of technical replicates declines as template DNA amount increases, consistent with our original hypothesis. At low and medium amplification efficiencies, rare species drop out at higher rates than counterparts with higher amplification efficiency. 
+
+(Code found in PCR.Variation/special_issue_manuscript/code/calcofi_signal_noise_20210107)
 
 ```{r Figure 4, echo = F}
 knitr::include_graphics(here("figures", "drop_prop_logistic.png"))
 ```
 
+Figure 5 shows that the most dropouts within a set of technical replicates are seen for low count (0 - 10 larvae) species with medium amplification efficiency (-0.07 - 0).  Figure 6 differs from Figure 5 in that it includes species for which larvae were observed, though no sequenced reads are present (3 dropouts), representing rare species who are likely to have high dropout rates. Unsurprisingly, we see the most dropouts for species with low counts and amplification efficiencies.  
+
+(Code found in PCR.Variation/special_issue_manuscript/code/Make_Tile_Plots)
 
 ```{r Figure 5, echo = F}
-knitr::include_graphics(here("figures", ""))
+knitr::include_graphics(here("figures", "tech_drop_tile_6bins_.png"))
 ```
 
-
-
+```{r Figure 6, echo = F}
+knitr::include_graphics(here("figures", "tech_drop_tile_6bins_123nondetections.png"))
+```
 
 
 Simulations show where observation variance is so large that there's little correlation between expected and observed amplicon counts. Figure 1. 
