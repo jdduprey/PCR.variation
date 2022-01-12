@@ -27,9 +27,6 @@ TechDrops.vs.CountsAmps <- function(input_df, countBreaks, ampBreaks){
   
   total_binned_df <- data.frame(input_df, abundance_bin=cut(input_df$abundance, na.rm =T, breaks = countBreaks),  ampef_bin = cut(input_df$amp_ef, na.rm= T, breaks = ampBreaks))  # sort abundance and amp efficiency into quantiles with all input data
   
-  
-  
-  
   unique_bins <- unique(total_binned_df[,c("abundance_bin","ampef_bin" )]) # all unique amp bin and abundance bin combinations
   unique_bins <- unique_bins[complete.cases(unique_bins), ]
   
