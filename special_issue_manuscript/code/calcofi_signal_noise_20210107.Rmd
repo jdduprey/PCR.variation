@@ -13,6 +13,7 @@ here()
 library(see)
 ```
 
+Exploratory Plots. Tile Plots can be found in PCR.Variation/special_issue_manuscript/code/Make_Tile_Plots.Rmd
 
 ```{r}
 MiFish_data <- readRDS(file = here("special_issue_manuscript","Data","mifish_tech_nReads.RDS"))
@@ -162,58 +163,21 @@ height = 8
 )
 ```
 
-
+# Plot proportion drops vs. read depth
 ```{r}
-grandmin <- -0.01
-grandmax <- 1.1
-
-mybreaks <- seq(grandmin, ceiling(round(grandmax, 0)), length.out = 9)
-
-plotting_drop_outs %>% 
-  ggplot(aes(x=alpha, y=log(larval_counts), z=drop_prop)) +geom_contour_filled(breaks= mybreaks,size = 5, show.legend = TRUE)  +scale_colour_viridis_c()
-  
-  
+plotting_read_depth <- plotting_drop_outs %>% group_by(tot_reads) %>% 
+  summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop))
+ 
+plotting_read_depth %>% ggplot(aes(x=`tot_reads`, y=`Proportion of Technical Replicates with Zero Reads`)) + geom_point() + xlab("Read Depth")
 
 ggsave(
-file = here::here("figures", "drop_prop_alpha_counts_surface.png"),
+file = here::here("figures", "readDepth_propdrops.png"),
 width = 14,
 height = 8
 )
-
 ```
 
-# Tile plot
-```{r}
-plotting_drop_outs %>% 
-  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
-                              alpha >-0.07  ~"Medium Alpha",
-                              TRUE ~"Low Alpha")) %>% 
-    mutate(larval_abundance = case_when(larval_counts >100  ~ ">100 Larvae",
-      larval_counts >10  ~ ">10 Larvae",
-                              larval_counts >0  ~ ">0 Larvae",
-                              TRUE ~"No Larvae")) -> plotting_drop_outs_2
-
-plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
-
-plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae",
-                                                                                                  ">0 Larvae",
-                                                                                                  ">10 Larvae",">100 Larvae"))
-
-plotting_drop_outs_2 %>% 
-  ungroup() %>% 
-  group_by(alpha_group,larval_abundance) %>% 
-  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>% 
-  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
-
-ggsave(
-file = here::here("figures", "tech_drop_tile.png"),
-width = 14,
-height = 8
-)
-
-
-```
-
+# Logistic facet plot 
 ```{r}
 plotting_drop_outs %>% 
   mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
@@ -318,35 +282,7 @@ height = 8
 
 ```
 
-# tile plot with fewer bins
-```{r}
-plotting_drop_outs %>% 
-  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
-                              alpha >-0.07  ~"Medium Alpha",
-                              TRUE ~"Low Alpha")) %>% 
-    mutate(larval_abundance = case_when(# larval_counts >100  ~ ">100 Larvae",
-      larval_counts >10  ~ ">10 Larvae",
-                              larval_counts >0  ~ ">0 Larvae",
-                              TRUE ~"No Larvae")) -> plotting_drop_outs_2
-
-plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
-
-plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae",
-                                                                                                  ">0 Larvae",
-                                                                                                  ">10 Larvae"))
-
-plotting_drop_outs_2 %>% 
-  ungroup() %>% 
-  group_by(alpha_group,larval_abundance) %>% 
-  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>% 
-  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
-
-ggsave(
-file = here::here("figures", "tech_drop_tile_6bins.png"),
-width = 14,
-height = 8
-)
 
 
-```
+
 
