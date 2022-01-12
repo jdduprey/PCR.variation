@@ -240,6 +240,65 @@ height = 8
 
 ```
 
+```{r Helen's function + plot }
+# now takes long form data, also includes tech reps with 3 zeros 
+# - using Zack's proportion metric - just using cut() to make breaks
+
+drop_function_df <- calcofi_use %>%
+  filter(., !is.na(mifish_reads)) %>% 
+ filter(larval_counts >0) 
+
+# When you change countBreaks and ampBreaks, must change levels of outputdf (lines 287-293)
+
+
+TechDrops.vs.CountsAmps <- function(input_df, countBreaks, ampBreaks){
+  
+  total_binned_df <- data.frame(input_df, abundance_bin=cut(input_df$larval_counts, na.rm =T, breaks = countBreaks), 
+                                ampef_bin = cut(input_df$alpha, na.rm= T, breaks = ampBreaks))  # sort abundance and amp efficiency into quantiles with all input data
+  
+  unique_bins <- unique(total_binned_df[,c("abundance_bin","ampef_bin" )]) # all unique amp bin and abundance bin combinations
+  unique_bins <- unique_bins[complete.cases(unique_bins), ]
+  
+  list <- replicate(length(unique_bins[,1]), rep(NA, length=nrow(total_binned_df)), simplify = FALSE) # list of empty vectors (length of input dataframe), one vector for all the row indices corresponding to an unique amp&abundance bin combination
+  
+  propdrops <- unique_bins %>% mutate(dropout_proportion = rep(NA, length(unique_bins[,1]))) %>% mutate(totalprop_in_bin = rep(NA, length(unique_bins[,1])))
+  
+  # Gets index values in input dataframe corresponding to a the numeric factor levels for given abundance/amp bin 
+  bin_levels_list <- lapply(total_binned_df[,c('abundance_bin','ampef_bin')], as.numeric)
+  
+  for(i in 1:length(unique_bins[,1])){
+    bin <- as.numeric(unique_bins[i,]) # get vector of numeric factor levels of that abundance/amp bin (so c([1,3], [0.1,0.3]) would be c(1,1))
+    
+      bin_indices <- which(bin_levels_list$abundance_bin == bin[1] & bin_levels_list$ampef_bin == bin[2])
+  
+    specific_bin_df <- total_binned_df[bin_indices,] # subset data to only include given abundance/amp bin, get prop of dropouts
+    
+    dropouts <-  specific_bin_df %>% 
+      group_by(ID_mifish,station_id,ext_rep) %>% 
+      dplyr::summarise(Drop_out_count = sum(prop_reads>0)) %>% 
+      mutate(., drop_prop = 1- Drop_out_count/3)
+    
+    propdrops[i,3] <- mean(dropouts$drop_prop)
+    
+    propdrops$totalprop_in_bin[i] <- length(bin_indices)/nrow(total_binned_df) # proportion taken up by that bin 
+  }
+  
+  print(propdrops %>% 
+    ungroup() %>% 
+    group_by(ampef_bin,abundance_bin) %>% 
+    dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=dropout_proportion) %>%
+    ggplot() + 
+    geom_tile(aes(x=ampef_bin, y=abundance_bin, fill=`Proportion of Technical Replicates with Zero Reads`))  +
+    scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance"))
+  
+  return(propdrops)
+}
+
+TechDrops.vs.CountsAmps(drop_function_df, countBreaks = 2, ampBreaks = 2)
+
+# final output df gives the count/amp bin combinations, the Proportion of Technical Replicates with Zero Reads in each, and the how much of the whole dataset each bin makes up
+
+```
 
 
 
