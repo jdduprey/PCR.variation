@@ -40,7 +40,7 @@ Given that sampling effort affects all taxa in the same direction, we can visual
 
 ### Low amplification efficiency and low biomass: (Type IV): high variability, but so few reads you might not notice; low ability to detect
 
-This qualitative model (consistent with Egozcue et al 2020) suggests that much of the unexplained variance among technical PCR replicates stems from sampling stochasticity among rare molecules. If we imagine the process of creating technical replicates from a common biological sample as being a multinomial process -- in which molecules of a given species are sampled in according to their underlying proportions in the biological community -- rare molecules may be sampled in one ``replicate'' and not in another. The result is apparent presence-absence disagreement of species among technical replicates. 
+This qualitative model (consistent with Egozcue et al 2020) suggests that much of the unexplained variance among technical PCR replicates stems from sampling stochasticity among rare molecules. If we imagine the process of creating technical replicates from a common biological sample as being a multinomial process -- in which molecules of a given species are sampled in according to their underlying proportions in the biological community -- rare molecules may be sampled in one 'replicate' and not in another. The result is apparent presence-absence disagreement of species among technical replicates. 
 
 Where amplification efficiency of these species is high, the pattern can be striking: high read numbers in one replicate, zero in another [Figure 2]. But we expect the greatest number of dropouts to be associated with rare, low amplification efficiency species - these molecules, if included in a technical replicate, may fail to amplify at all.  **this last sentence may not be true, but see my comment in the slack channel - circle back HC**
 
@@ -85,7 +85,7 @@ data.frame(obs_I, exp_I, obs_II, exp_II, obs_III, exp_III, obs_IV, exp_IV) %>%
 As part of the California Cooperative Oceanic Fisheries Investigations (CalCOFI), Gold et al. (IN PREP) used morphological and molecular methods to analyze the response of ichthyoplankton in the California Current Large Marine Ecosystem to ocean warming, creating a mock community of larval fishes in the process.  
 
 Ichthyoplankton samples were collected during CalCOFI research cruises over two decades (1996; 1998-2019). Part of each sample was preserved in Tris-buffered 95% ethanol for metabarcoding using the Mifish primer set, with three technical replicates conducted per sample. Amplification efficiency was estimated for each species by generating standard calibration curves. The remaining part of each sample was preserved in sodium borate-buffered 2% formaldehyde for microscopy-derived species identification and abundance (number of larvae per species per jar).  
-**I probably am missing important details here/slightly speaking out of my arse HC**
+**fill in important missing details HC**
 
 Using CalCOFI's mock community -- including larval counts, amplification efficiency, and sequenced reads within technical replicates -- we tested whether a species' position in our hypothesized matrix, and its sample's read depth, explained variability in that species' read abundance among technical replicates.
 
