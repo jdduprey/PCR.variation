@@ -11,7 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 library(MCMCpack)
 library(tidyverse)
-
+library(here)
 ```
 
 
@@ -42,7 +42,7 @@ Given that sampling effort affects all taxa in the same direction, we can visual
 
 This qualitative model (consistent with Egozcue et al 2020) suggests that much of the unexplained variance among technical PCR replicates stems from sampling stochasticity among rare molecules. If we imagine the process of creating technical replicates from a common biological sample as being a multinomial process -- in which molecules of a given species are sampled in according to their underlying proportions in the biological community -- rare molecules may be sampled in one 'replicate' and not in another. The result is apparent presence-absence disagreement of species among technical replicates. 
 
-Where amplification efficiency of these species is high, the pattern can be striking: high read numbers in one replicate, zero in another [Figure 2]. When rare species have low amplification efficiencies, their DNA, if included in a technical replicate, may fail to amplify at all and result in zero observed reads across technical replicates. 
+Where amplification efficiency of these species is high, the pattern can be striking: high read numbers in one replicate, zero in another [Figure 2]. When rare species have low amplification efficiencies, their DNA, if included in a technical replicate, may fail to amplify at all and result in zero observed reads across technical replicates. Thus, we expect to see the highest rates of partial detection (1 or 2 detections among 3 replicates) among rare species with high amplification efficiencies, and the highest rates of non-detection (non-zero larval counts and zero sequenced reads) among rare species with low amplification efficiencies. 
 
 Scaling these observations up to the level of the entire biological community as represented in metabarcoding samples, this process yields large differences in community composition (e.g., Bray-Curtis dissimilarity) among replicates when PCR primers target rare templates (e.g., vertebrates or specific vertebrates such as fish, in a marine environment). Broad-spectrum primers targeting a swath of different templates (e.g., eukaryotes) are likely to have lower variance among replicates driven by fewer dropouts, merely because the underlying template molecules are much more common (e.g., diatoms in the marine environment). 
 
@@ -92,7 +92,7 @@ Using CalCOFI's mock community -- including larval counts, amplification efficie
 We can visualize variability among technical replicates within a mock community
 by either looking at the spread of read abundance values, or the amount of presence-absence disagreement. 
 
-The former should indicate whether rare molecules result in greater magnitudes of difference between technical replicates, and whether a high amplification efficiency amplifies this effect. To this end, we use coefficient of variation. The latter metric -- presence-absence disagreement -- relates to the frequency of dropouts among a set of technical replicates, which we propose increases with low DNA concentration and high amplification efficiency. We represent this using the proportion of species (sample-specific) which had 1 to 3 dropouts among technical replicates.    
+The former should indicate whether rare molecules result in greater magnitudes of difference between technical replicates, and whether a high amplification efficiency amplifies this effect. To this end, we use coefficient of variation. The latter metric -- presence-absence disagreement -- relates to the frequency of partial dropouts among a set of technical replicates, which we propose increases with low DNA concentration and high amplification efficiency. We represent this using the proportion of species (sample-specific) which had 1 to 3 dropouts among technical replicates.    
 
 
  ---- Below = moncho's data (Talk about taxa vs. dropouts), maybe we put a pin in that for now. ----
@@ -112,7 +112,7 @@ Figure 3 shows the the average number of dropouts within a set of technical repl
 knitr::include_graphics(here("figures", "readDepth_propdrops.png"))
 ```
 
-Figure 4 shows that the the average number of dropouts within a set of technical replicates declines as template DNA amount increases, consistent with our original hypothesis. At low and medium amplification efficiencies, rare species drop out at higher rates than counterparts with higher amplification efficiency. 
+Figure 4 shows that the the average number of dropouts within a set of technical replicates declines as template DNA amount increases, consistent with our original hypothesis. 
 
 (Code found in PCR.Variation/special_issue_manuscript/code/calcofi_signal_noise_20210107)
 
@@ -120,7 +120,7 @@ Figure 4 shows that the the average number of dropouts within a set of technical
 knitr::include_graphics(here("figures", "drop_prop_logistic.png"))
 ```
 
-Figure 5 shows that the most dropouts within a set of technical replicates are seen for low count (0 - 10 larvae) species with medium amplification efficiency (-0.07 - 0).  Figure 6 differs from Figure 5 in that it includes species for which larvae were observed, though no sequenced reads are present (3 dropouts), representing rare species who are likely to have high dropout rates. Unsurprisingly, we see the most dropouts for species with low counts and amplification efficiencies.  
+Figure 5 shows that the most dropouts within a set of technical replicates are seen for low count (0 - 10 larvae) species with medium amplification efficiency (-0.07 - 0).  Figure 6 differs from Figure 5 in that it includes species for which larvae were observed, though no sequenced reads are present (3 dropouts) (this should probably be the reverse, zerocounts w/ nonzeroreads). 
 
 (Code found in PCR.Variation/special_issue_manuscript/code/Make_Tile_Plots)
 
