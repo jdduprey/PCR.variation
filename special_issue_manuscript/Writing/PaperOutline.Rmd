@@ -148,6 +148,12 @@ Test conceptual model in simulated datasets... 2x2 matrix.  Then do the same in 
 
 # Conclusion
 
+Value of technical replication
+
+Value of mock communities
+
+Value of variable PCR? 
+
 So, here's when you can and can't trust your data. 
 
 
