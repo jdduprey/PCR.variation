@@ -27,10 +27,10 @@ alphas %>%
   mutate(., ID_mifish=Species) %>% distinct()-> alphas
 ```
 
-```{r Data into wide form}
+```{r get total larval counts and total ASV reads}
 counts_plus_reads <- left_join(MiFish_data, larvae_data)
 
-# lets get the data into wide form 
+# make vectors of total ASV reads and total larval counts
 counts_plus_reads <- counts_plus_reads %>%
   mutate(bio_rep = paste(station_id, ext_rep, sep = "_")) %>%
   dplyr::select(-c(Sample, ID_sebastes, Unique_ID)) %>%
@@ -53,7 +53,7 @@ counts_plus_reads %>%
 
 ```{r More Data Wrangling}
 counts_plus_reads %>% 
-    unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% #create IDs
   left_join(mifish_tot_reads) %>% 
   left_join(larvae_tot_counts) %>% 
   mutate(., prop_reads= mifish_reads/tot_reads,
@@ -68,31 +68,33 @@ counts_plus_reads %>%
 
 
 calcofi_use %>% 
-      filter(., !is.na(mifish_reads)) %>%  
-    group_by(ID_mifish,station_id,ext_rep) %>% 
+  filter(., !is.na(mifish_reads)) %>%  
+  group_by(ID_mifish,station_id,ext_rep) %>% 
   dplyr::summarise(mean_prop_reads = mean(prop_reads),
                    max_prop_reads=max(prop_reads),
                    min_prop_reads=min(prop_reads)) %>% 
   filter(., max_prop_reads >0) %>% 
   mutate(Drop_outs = case_when(min_prop_reads > 0 & max_prop_reads > 0 ~"Three reps above zero",
-                              min_prop_reads == 0 & max_prop_reads > 0 ~"One rep is zero",
+                              min_prop_reads == 0 & max_prop_reads > 0 ~"One rep is zero",#at least one rep?
                               min_prop_reads == 0 & max_prop_reads == 0 ~"All zero")) -> calcofi_dropout_prop
 
+
+# get ID_mifish, station ID, ext rep, drop_out_count, drop_prop
 calcofi_use %>% 
-      filter(., !is.na(mifish_reads)) %>%  
-    filter(larval_counts >0) %>% 
-    group_by(ID_mifish,station_id,ext_rep) %>% 
-  dplyr::summarise(Drop_out_count = sum(prop_reads>0)) %>% 
-  mutate(., drop_prop = 1- Drop_out_count/3)-> calcofi_dropout_prop2
+  filter(., !is.na(mifish_reads)) %>%  
+  filter(larval_counts > 0) %>% 
+  group_by(ID_mifish, station_id, ext_rep) %>% 
+  dplyr::summarise(Drop_out_count = sum(prop_reads > 0)) %>% 
+  mutate(., drop_prop = 1 - Drop_out_count / 3) -> calcofi_dropout_prop2
 
 
 calcofi_use %>% 
-      filter(., !is.na(mifish_reads)) %>%  
-      filter(larval_counts >0) %>% 
-    group_by(ID_mifish,station_id,ext_rep) %>% 
+  filter(., !is.na(mifish_reads)) %>%  
+  filter(larval_counts > 0) %>% 
+  group_by(ID_mifish, station_id, ext_rep) %>% 
   left_join(calcofi_dropout_prop) %>% 
   left_join(calcofi_dropout_prop2) %>% 
-  filter(., !is.na(mean_prop_reads))-> plotting_drop_outs
+  filter(., !is.na(mean_prop_reads)) -> plotting_drop_outs
 ```
 
 # Tile Plots: Mapping Proportion of Technical Replicates of Zero Reads
@@ -103,7 +105,7 @@ grandmax <- 1.1
 mybreaks <- seq(grandmin, ceiling(round(grandmax, 0)), length.out = 9)
 
 plotting_drop_outs %>% 
-  ggplot(aes(x=alpha, y=log(larval_counts), z=drop_prop)) +geom_contour_filled(breaks= mybreaks,size = 5, show.legend = TRUE)  +scale_colour_viridis_c()
+  ggplot(aes(x=alpha, y=log(larval_counts), z=drop_prop)) +geom_contour_filled(breaks= mybreaks,size = 5, show.legend = TRUE)  + scale_colour_viridis_c()
   
   
 
@@ -117,19 +119,17 @@ height = 8
 
 ```{r 9-bin Heat Map}
 plotting_drop_outs %>% 
-  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
-                              alpha >-0.07  ~"Medium Alpha",
-                              TRUE ~"Low Alpha")) %>% 
-    mutate(larval_abundance = case_when(larval_counts >100  ~ ">100 Larvae",
-      larval_counts >10  ~ ">10 Larvae",
-                              larval_counts >0  ~ ">0 Larvae",
-                              TRUE ~"No Larvae")) -> plotting_drop_outs_2
+  mutate(alpha_group = case_when(alpha > 0  ~ "High Alpha",
+                                 alpha >-0.07  ~ "Medium Alpha",
+                                 TRUE ~ "Low Alpha")) %>% 
+  mutate(larval_abundance = case_when(larval_counts >100  ~ ">100 Larvae",
+                                      larval_counts > 10  ~ ">10 Larvae",
+                                 larval_counts > 0  ~ ">0 Larvae",
+                                 TRUE ~ "No Larvae")) -> plotting_drop_outs_2
 
 plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
 
-plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae",
-                                                                                                  ">0 Larvae",
-                                                                                                  ">10 Larvae",">100 Larvae"))
+plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae", ">0 Larvae", ">10 Larvae", ">100 Larvae"))
 
 plotting_drop_outs_2 %>% 
   ungroup() %>% 
@@ -246,7 +246,7 @@ height = 8
 
 drop_function_df <- calcofi_use %>%
   filter(., !is.na(mifish_reads)) %>% 
- filter(larval_counts >0) 
+  filter(larval_counts > 0) 
 
 # When you change countBreaks and ampBreaks, must change levels of outputdf (lines 287-293)
 
