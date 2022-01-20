@@ -56,7 +56,6 @@ reads_annotated_no_drops <- wide_reads_annotated[-unique(dropouts),]
 ```
 
 ```{r Plots}
-
 # log_mean_reads vs. CV
 ggplot(reads_annotated_no_drops, aes(x = log_mean_reads, y = CV)) +
   geom_point() + 
@@ -73,6 +72,19 @@ reads_annotated_kingdom_subset <- reads_annotated_no_drops[kingdom_subset_indice
 ggplot(reads_annotated_kingdom_subset, aes(x = kingdom, y = CV)) +
   geom_boxplot() +
   scale_x_discrete(limits = king, guide = guide_axis(angle = 90))
+
+# try with some additional kingdoms 
+print(unique(reads_annotated_no_drops$kingdom))
+
+reads_annotated_kingdom_amob <- reads_annotated_no_drops %>%
+  filter(kingdom %in% c("Viridiplantae", "Stramenopiles", "Haptophyceae", 
+                        "Metazoa", "Rhodophyta", "Fungi","Dinoflagellates"))
+
+# kingdoms not included have tiny sample sizes
+
+ggplot(reads_annotated_kingdom_amob, aes(x = kingdom, y = CV)) +
+  geom_boxplot()
+
 ```
 
 # Exploring (<3) detections
