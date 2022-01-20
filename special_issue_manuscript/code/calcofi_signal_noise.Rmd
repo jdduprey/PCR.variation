@@ -1,0 +1,347 @@
+---
+title: "Amp Eff Punnet Square Exploration"
+author: "Zack Gold"
+date: "12/2/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggpmisc)
+here()
+library(see)
+```
+
+
+```{r}
+MiFish_data <- readRDS(file = here("data","mifish_tech_nReads.RDS"))
+larvae_data <- readRDS(file = here("data", "microscopy_tech_nReads.RDS"))
+alphas <- read.csv(file = here("data", "alpha_oceanic_all.csv"))
+
+alphas %>% 
+  mutate(., alpha = mean_log_alpha) %>% 
+  mutate(., ID_mifish=Species) %>% distinct() %>% 
+  mutate(., ID_mifish = if_else(str_detect(ID_mifish, "zRefSpecies_Bathylagoides wesethi"),		"Bathylagoides wesethi",ID_mifish)) %>% 
+mutate(., ID_mifish = if_else(str_detect(ID_mifish, "Vinciguerria lucetia"),"Vinciguerria sp.",ID_mifish)) %>% 
+  mutate(., ID_mifish = if_else(str_detect(ID_mifish, "Nannobrachium ritteri"),"Nannobrachium",ID_mifish)) -> alphas
+         
+    	
+```
+
+
+```{r}
+counts_plus_reads <- left_join(MiFish_data, larvae_data)
+
+ 
+# lets get the data into wide form 
+counts_plus_reads <- counts_plus_reads %>%
+  mutate(bio_rep = paste(station_id, ext_rep, sep = "_")) %>%
+  select(-c(Sample, ID_sebastes, Unique_ID)) %>%
+  distinct() 
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":") %>% 
+  dplyr::select(-larval_counts) %>% 
+  filter(., !is.na(mifish_reads)) %>% 
+  group_by(Sample_ID) %>% 
+  dplyr::summarise(tot_reads=sum(mifish_reads)) -> mifish_tot_reads
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":") %>% 
+  dplyr::select(-mifish_reads) %>% 
+  filter(., !is.na(larval_counts)) %>% 
+  group_by(Sample_ID) %>% 
+  dplyr::summarise(tot_counts=sum(larval_counts)) -> larvae_tot_counts
+
+
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish=="Engraulis mordax") %>% 
+  filter(., larval_counts >0) %>% 
+  dplyr::select(station_id,larval_counts,prop_counts) %>% distinct() %>% 
+  arrange(desc(prop_counts)) %>% 
+  ggplot(aes(x=log(larval_counts), y=prop_counts)) +geom_point()
+
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish=="Leuroglossus stilbius") %>% 
+  filter(., larval_counts >0) %>% 
+  dplyr::select(station_id,larval_counts,prop_counts) %>% distinct() %>% 
+  arrange(desc(prop_counts)) %>% 
+  ggplot(aes(x=larval_counts, y=prop_counts)) +geom_point()
+
+
+counts_plus_reads %>% 
+  unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish=="Sardinops sagax") %>% 
+  filter(., larval_counts >0) %>% 
+  dplyr::select(station_id,larval_counts,prop_counts) %>% distinct() %>% 
+  arrange(desc(prop_counts)) %>% 
+  ggplot(aes(x=log(larval_counts), y=prop_counts)) +geom_point()
+
+
+```
+
+
+```{r}
+
+counts_plus_reads %>% 
+    unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  left_join(alphas) %>% 
+  mutate(larval_abundance = case_when(larval_counts > 250  ~"High Counts",
+                              larval_counts >100  ~"Medium Counts",
+                              larval_counts >10  ~"Low Counts",
+                              larval_counts >0  ~"Super Low Counts",
+                              TRUE ~"Not Counted"))-> calcofi_dont
+
+calcofi_dont %>% 
+  ggplot(., aes(x=log(larval_counts+1), y=log(mifish_reads+1),colour=alpha)) +geom_count() +scale_color_viridis_c()
+
+
+calcofi_dont %>% 
+  filter(., larval_counts > 5) %>% 
+  dplyr::select(ID_mifish, alpha) %>% 
+  distinct()
+
+
+```
+#Plotting
+```{r}
+counts_plus_reads %>% 
+  filter(., !is.na(mifish_reads)) %>% 
+    unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% 
+  left_join(mifish_tot_reads) %>% 
+  left_join(larvae_tot_counts) %>% 
+  mutate(., prop_reads= mifish_reads/tot_reads,
+         prop_counts=larval_counts/tot_counts) %>% 
+  filter(., ID_mifish %in% alphas$Species) %>% 
+  left_join(alphas) %>% 
+  mutate(larval_abundance = case_when(larval_counts > 250  ~"High Counts",
+                              larval_counts >100  ~"Medium Counts",
+                              larval_counts >10  ~"Low Counts",
+                              larval_counts >0  ~"Super Low Counts",
+                              TRUE ~"Not Counted"))-> calcofi_use
+
+calcofi_use %>% 
+  ggplot(., aes(x=log(larval_counts+1), y=log(mifish_reads+1),colour=alpha)) +geom_point() +scale_color_viridis_c()
+
+
+
+```
+
+
+```{r}
+
+calcofi_use %>% 
+     # filter(larval_counts >0) %>% 
+    group_by(ID_mifish,station_id,ext_rep) %>% 
+  dplyr::summarise(non_na_tech_count = sum(!is.na(tech_rep)),
+    mean_prop_reads = mean(prop_reads),
+                   max_prop_reads=max(prop_reads),
+                   min_prop_reads=min(prop_reads),
+                   mean_prop_counts = mean(prop_counts),
+                   max_prop_counts=max(prop_counts),
+                   min_prop_counts=min(prop_counts)) %>% 
+  filter(., max_prop_reads >0) %>% 
+  filter(., non_na_tech_count ==3) %>% 
+  mutate(Drop_outs = case_when(min_prop_reads > 0 & max_prop_reads > 0 ~"Three reps above zero",
+                              min_prop_reads == 0 & max_prop_reads > 0 ~"One rep is zero",
+                              min_prop_reads == 0 & max_prop_reads == 0 ~"All zero")) -> calcofi_dropout_prop
+
+calcofi_use %>% 
+      filter(., !is.na(mifish_reads)) %>%  
+    #filter(larval_counts >0) %>% 
+    group_by(ID_mifish,station_id,ext_rep) %>% 
+  dplyr::summarise(Drop_out_count = sum(prop_reads>0)) %>% 
+  mutate(., drop_prop = 1- Drop_out_count/3)-> calcofi_dropout_prop2
+
+calcofi_use %>% 
+  dplyr::select(ID_mifish,station_id,ext_rep,alpha,larval_abundance, larval_counts ) %>% distinct() -> alpha_larval_counts
+  
+
+
+  calcofi_dropout_prop %>% 
+  left_join(calcofi_dropout_prop2) %>% 
+    left_join(alpha_larval_counts) %>% 
+  filter(., !is.na(mean_prop_reads)) %>% 
+    mutate(., Species =ID_mifish)-> plotting_drop_outs
+  
+
+plotting_drop_outs %>% 
+  ggplot(aes(x=Species, y=mean_prop_reads, color=alpha, shape=Drop_outs)) +geom_point() +
+  theme(axis.text.x = element_text(angle =30, hjust=1)) +facet_wrap(larval_abundance~Drop_outs) +scale_colour_viridis_c()
+
+
+
+ggsave(
+file = here::here("figures_exploration", "drop_outs_alpha.png"),
+width = 14,
+height = 8
+)
+```
+
+
+```{r}
+plotting_drop_outs %>% 
+  ggplot(aes(x=Species, y=log(larval_counts), group=Species,color=alpha)) +geom_boxplot()  +scale_colour_viridis_c() +facet_wrap(Drop_out_count~.)+
+  theme(axis.text.x = element_text(angle =30, hjust=1))
+
+ggsave(
+file = here::here("figures_exploration", "boxplots_alpha.png"),
+width = 14,
+height = 8
+)
+```
+
+
+
+# Tile plot
+```{r}
+
+plotting_drop_outs %>% 
+  mutate(alpha_group = case_when(alpha >-0.07  ~"High Alpha",
+                              TRUE ~"Low Alpha")) %>% 
+    mutate(larval_abundance = case_when(larval_counts >10  ~ ">10 Larvae",
+                              larval_counts >0  ~ ">0 Larvae",
+                              TRUE ~"No Larvae")) %>% 
+  mutate(larval_abundance_prop = case_when(mean_prop_counts >.2  ~ ">20%",
+                              mean_prop_counts >0  ~ ">0%",
+                              TRUE ~"No Larvae"))-> plotting_drop_outs_2
+
+plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","High Alpha"))
+
+plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae",
+                                                                                                  ">0 Larvae",
+                                                                                                  ">10 Larvae"))
+
+plotting_drop_outs_2$larval_abundance_prop <- factor(plotting_drop_outs_2$larval_abundance_prop, levels = c("No Larvae",
+                                                                                                  ">0%",
+                                                                                                  ">20%"))
+
+plotting_drop_outs_2 %>% 
+    filter(., larval_counts >0) %>% 
+  ungroup() %>% 
+  group_by(alpha_group,larval_abundance) %>% 
+  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>%
+  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
+
+ggsave(
+file = here::here("figures_exploration", "tech_drop_tile.png"),
+width = 14,
+height = 8
+)
+
+
+plotting_drop_outs_2 %>% 
+  filter(., larval_counts >0) %>% 
+  ungroup() %>% 
+  group_by(Species,alpha_group,larval_abundance) %>% 
+  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>%
+  ggplot(aes(x=Species, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance") + facet_wrap(alpha_group ~., scales = "free_x") +theme(axis.text.x = element_text(angle =30, hjust=1))
+
+ggsave(
+file = here::here("figures_exploration", "tech_drop_tile_species.png"),
+width = 14,
+height = 8
+)
+
+```
+
+```{r}
+plotting_drop_outs %>% 
+  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
+                              alpha >-0.07  ~"Medium Alpha",
+                              TRUE ~"Low Alpha")) %>% 
+  ggplot(aes(y=drop_prop, x=log(larval_counts+1), colour=alpha)) +geom_count() +
+  scale_colour_viridis_c() +
+  geom_smooth(method = glm, method.args= list(family="quasibinomial")) +
+  theme(axis.text.x = element_text(angle =30, hjust=1)) +ylab("Proportion of Technical Replicates with Zero Reads") +facet_wrap(alpha_group~.)
+
+
+
+
+ggsave(
+file = here::here("figures_exploration", "drop_prop_logistic.png"),
+width = 14,
+height = 8
+)
+
+```
+
+
+```{r}
+  
+calcofi_use %>% 
+      ungroup() %>% 
+  filter(., !is.na(mifish_reads)) %>% 
+  group_by(ID_mifish,station_id,ext_rep) %>% 
+  dplyr::summarise(meanprop = mean(prop_reads),
+            varprop = var(prop_reads)) %>%
+  filter(meanprop > 0) %>% 
+  ungroup() %>% 
+  mutate(index_dispersion = varprop/meanprop) %>% 
+  drop_na() -> id_calcofi
+
+
+calcofi_use %>% 
+      filter(., !is.na(mifish_reads)) %>%  
+    group_by(ID_mifish,station_id,ext_rep) %>% 
+  left_join(id_calcofi) %>% 
+  filter(!is.na(index_dispersion)) -> plotting_id
+
+plotting_id %>%  View()
+
+calcofi_use %>% 
+   group_by(ID_mifish,station_id,ext_rep) %>% 
+  dplyr::summarise(sum_larval_counts = sum(larval_counts)) -> sum_counts_tech
+
+calcofi_use %>% 
+   group_by(ID_mifish,station_id,ext_rep) %>% 
+  dplyr::summarise(sum_mifish_reads = sum(mifish_reads)) -> sum_mifish_reads
+
+id_calcofi%>% 
+  left_join(sum_counts_tech) %>% 
+  left_join(sum_mifish_reads) %>% 
+  left_join(alphas) %>% 
+ mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
+                              alpha >-0.07  ~"Medium Alpha",
+                              TRUE ~"Low Alpha")) %>% 
+    ungroup()  %>% 
+  ggplot(aes(y=sum_counts_tech, x=sum_mifish_reads, color= alpha)) +geom_point() +geom_smooth(method="lm") +
+  stat_poly_eq(formula = y~x, 
+                aes(label = paste(..rr.label..,..p.value.label.., sep = "~~~")), 
+                parse = TRUE,
+               label.x = 1.5,
+  label.y = 0.1, p.digits =2, rr.digits = 2,size = 7)  + scale_colour_viridis_d()
+
+
+
+ggsave(
+file = here::here("figures_exploration", "index_dispersion_vs_mifish_reads.png"),
+width = 14,
+height = 8
+)
+```
+
+
+
+
