@@ -102,9 +102,13 @@ prop.drops <- function(wide_df, kingdoms){
    proportion_drops[i,2] <- length(unique(dropouts)) / nrow(df)
   }
   
-  # for(i in kingdoms){
-  #   
-  # }
+  print("SAMPLE SIZES:")
+  for(i in kingdoms){
+    one_kingdom <- wide_df %>%
+      filter(kingdom %in% i)
+    
+    print(paste(i, nrow(one_kingdom)))
+   }
   
     return(proportion_drops)
 }
@@ -120,6 +124,8 @@ ggplot(output_df, aes(x = kingdom, y = proportionDrops)) +
 
 ggplot(all_king_drops, aes(x = kingdom, y = proportionDrops)) +
   geom_bar(stat="identity") 
+
+
 ```
 
 We also know that one-detection asvs are linked to lower mean reads than two- and three-detection asvs. 
