@@ -92,23 +92,34 @@ ggplot(reads_annotated_kingdom_amob, aes(x = kingdom, y = CV)) +
 ```{r Per taxon, percentage of dropouts; plot}
 prop.drops <- function(wide_df, kingdoms){
 
-proportion_drops <- data.frame(kingdom = kingdoms, proportionDrops = NA)
-for(i in 1:length(kingdoms)){
-  df <- wide_df[wide_df$kingdom == kingdoms[i],]
-
-  dropouts <- c(which(df$`1` == 0),
-              which(df$`2` == 0),
-              which(df$`3` == 0))
- proportion_drops[i,2] <- length(unique(dropouts)) / nrow(df)
-}
-  return(proportion_drops)
+  proportion_drops <- data.frame(kingdom = kingdoms, proportionDrops = NA)
+  for(i in 1:length(kingdoms)){
+    df <- wide_df[wide_df$kingdom == kingdoms[i],]
+  
+    dropouts <- c(which(df$`1` == 0),
+                which(df$`2` == 0),
+                which(df$`3` == 0))
+   proportion_drops[i,2] <- length(unique(dropouts)) / nrow(df)
+  }
+  
+  # for(i in kingdoms){
+  #   
+  # }
+  
+    return(proportion_drops)
 }
 
 output_df <- prop.drops(wide_reads_annotated, c("Metazoa", "Rhodophyta", "Fungi","Dinoflagellates"))
 
+all_king_drops <- prop.drops(wide_reads_annotated, c("Viridiplantae", "Stramenopiles", "Haptophyceae", 
+                            "Metazoa", "Rhodophyta", "Fungi","Dinoflagellates") )
+
 ggplot(output_df, aes(x = kingdom, y = proportionDrops)) +
   geom_bar(stat="identity") + 
-   scale_x_discrete(limits = c("Metazoa", "Rhodophyta", "Fungi","Dinoflagellates"), guide = guide_axis(angle = 90)) 
+  scale_x_discrete(limits = c("Metazoa", "Rhodophyta", "Fungi","Dinoflagellates"), guide = guide_axis(angle = 90)) 
+
+ggplot(all_king_drops, aes(x = kingdom, y = proportionDrops)) +
+  geom_bar(stat="identity") 
 ```
 
 We also know that one-detection asvs are linked to lower mean reads than two- and three-detection asvs. 
