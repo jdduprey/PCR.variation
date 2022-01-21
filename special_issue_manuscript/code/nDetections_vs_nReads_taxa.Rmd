@@ -129,4 +129,38 @@ ggplot(all_king_drops, aes(x = kingdom, y = proportionDrops)) +
 ```
 
 We also know that one-detection asvs are linked to lower mean reads than two- and three-detection asvs. 
+```{r lets look at dropouts by phylum}
+
+by_phylum_drops <- function(wide_df, phyla){
+
+  proportion_drops <- data.frame(phylum = phyla, proportionDrops = NA)
+  for(i in 1:length(phyla)){
+    df <- wide_df[wide_df$phylum == phyla[i],]
+  
+    dropouts <- c(which(df$`1` == 0),
+                which(df$`2` == 0),
+                which(df$`3` == 0))
+   proportion_drops[i,2] <- length(unique(dropouts)) / nrow(df)
+  }
+  
+  print("SAMPLE SIZES:")
+  for(i in phyla){
+    one_phylum <- wide_df %>%
+      filter(phylum %in% i)
+    
+    print(paste(i, nrow(one_phylum)))
+   }
+  
+    return(proportion_drops)
+}
+
+print(unique(wide_reads_annotated$phylum))
+
+phyla_bar_df_1 <- by_phylum_drops(wide_reads_annotated, c("Annelida", "Chordata", "Porifera", "Arthropoda",
+                                                        "Rotifera", "Mollusca", "Bryozoa", "Cnidaria", 
+                                                        "Echinodermata"))
+
+ggplot(phyla_bar_df, aes(x = phylum, y = proportionDrops)) +
+  geom_bar(stat="identity") 
+```
 
