@@ -1,19 +1,25 @@
 ---
 title: "Tile Plots - Variation Amongst Technical Replicates"
-author: "Zack Gold (Helen just moved tile plots to separate file)"
-date: "1/12/2021"
+author: "Zack Gold (Helen just moved&cleaned)"
+date: "1/22/2021"
 output: html_document
 ---
+
+Makes the following figures (in PCR.variation/figures): 
+- punnett_no3xdrops.png (what leads to partial drops)
+- punnett_3xdrops_3xdetections_only.png (what leads to complete drops)
+- drop_prop_alpha_counts_surface.png (moncho's idea for fluid heat map)
+
+* also includes Helen's function at the end
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r Dependencies}
 library(tidyverse)
 library(here)
 library(ggpmisc)
-here()
 library(see)
 ```
 
@@ -28,21 +34,23 @@ alphas %>%
 ```
 
 ```{r get total larval counts and total ASV reads}
-counts_plus_reads <- left_join(MiFish_data, larvae_data)
+counts_plus_reads <- left_join(MiFish_data, larvae_data) 
 
 # make vectors of total ASV reads and total larval counts
 counts_plus_reads <- counts_plus_reads %>%
   mutate(bio_rep = paste(station_id, ext_rep, sep = "_")) %>%
-  dplyr::select(-c(Sample, ID_sebastes, Unique_ID)) %>%
+  dplyr::select(-c(Sample, ID_sebastes, Unique_ID)) %>%  # but unique_ID has sp that are missing in ID_mifish col
   distinct() 
 
+# total reads in each technical replicate
 counts_plus_reads %>% 
   unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":") %>% 
   dplyr::select(-larval_counts) %>% 
-  filter(., !is.na(mifish_reads)) %>% 
+   filter(., !is.na(mifish_reads)) %>% 
   group_by(Sample_ID) %>% 
-  dplyr::summarise(tot_reads=sum(mifish_reads)) -> mifish_tot_reads
+  dplyr::summarise(tot_reads=sum(mifish_reads)) -> mifish_tot_reads 
 
+# total larvae counted in each technical replicate
 counts_plus_reads %>% 
   unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":") %>% 
   dplyr::select(-mifish_reads) %>% 
@@ -51,7 +59,8 @@ counts_plus_reads %>%
   dplyr::summarise(tot_counts=sum(larval_counts)) -> larvae_tot_counts
 ```
 
-```{r More Data Wrangling}
+```{r More Data Wrangling; Making Larval Count Categories & Calculating Dropout Proportion}
+# add proportion reads and proportion count cols, also categorize larval counts
 counts_plus_reads %>% 
   unite(., Sample_ID, c("station_id","ext_rep","tech_rep"), sep=":",remove="F") %>% #create IDs
   left_join(mifish_tot_reads) %>% 
@@ -64,25 +73,32 @@ counts_plus_reads %>%
                               larval_counts >100  ~"Medium Counts",
                               larval_counts >10  ~"Low Counts",
                               larval_counts >0  ~"Super Low Counts",
-                              TRUE ~"Not Counted"))-> calcofi_use
+                              TRUE ~"Not Counted")) -> calcofi_use 
+
+# also want to remove species-samples that have 0 larval counts and 0 mifish_reads 
+calcofi_use %>% filter(larval_abundance == "Not Counted") %>% group_by(ID_mifish, station_id, ext_rep) %>% summarise("sp_total_tech_reads" = sum(mifish_reads)) %>%
+  filter(sp_total_tech_reads == 0) %>% select(-sp_total_tech_reads) -> full_nondetection
+
+anti_join(calcofi_use, full_nondetection, by=c('ID_mifish', 'station_id', 'ext_rep')) -> calcofi_use
 
 
+# Categorize into dropout # 
 calcofi_use %>% 
   filter(., !is.na(mifish_reads)) %>%  
   group_by(ID_mifish,station_id,ext_rep) %>% 
   dplyr::summarise(mean_prop_reads = mean(prop_reads),
                    max_prop_reads=max(prop_reads),
                    min_prop_reads=min(prop_reads)) %>% 
-  filter(., max_prop_reads >0) %>% 
+  # filter(., max_prop_reads >0) %>% 
   mutate(Drop_outs = case_when(min_prop_reads > 0 & max_prop_reads > 0 ~"Three reps above zero",
-                              min_prop_reads == 0 & max_prop_reads > 0 ~"One rep is zero",#at least one rep?
+                              min_prop_reads == 0 & max_prop_reads > 0 ~"One rep is zero", #at least one rep?
                               min_prop_reads == 0 & max_prop_reads == 0 ~"All zero")) -> calcofi_dropout_prop
 
 
-# get ID_mifish, station ID, ext rep, drop_out_count, drop_prop
+# get ID_mifish, station ID, ext rep, drop_out_count, drop_prop (drop prop can either be 0, 1/3, 2/3, or 1)
 calcofi_use %>% 
   filter(., !is.na(mifish_reads)) %>%  
-  filter(larval_counts > 0) %>% 
+  # filter(larval_counts > 0) %>% 
   group_by(ID_mifish, station_id, ext_rep) %>% 
   dplyr::summarise(Drop_out_count = sum(prop_reads > 0)) %>% 
   mutate(., drop_prop = 1 - Drop_out_count / 3) -> calcofi_dropout_prop2
@@ -90,14 +106,85 @@ calcofi_use %>%
 
 calcofi_use %>% 
   filter(., !is.na(mifish_reads)) %>%  
-  filter(larval_counts > 0) %>% 
+ #  filter(larval_counts > 0) %>% 
   group_by(ID_mifish, station_id, ext_rep) %>% 
   left_join(calcofi_dropout_prop) %>% 
   left_join(calcofi_dropout_prop2) %>% 
   filter(., !is.na(mean_prop_reads)) -> plotting_drop_outs
 ```
 
-# Tile Plots: Mapping Proportion of Technical Replicates of Zero Reads
+# Punnett Plots: Mapping Proportion of Technical Replicates of Zero Reads
+
+```{r 9-bin Heat Map (no 3x non-detections)}
+# Here, we are including everything except for species not detected in any PCR replicate. We are still including species within a sample that were not detected via microscopy, but show up in MiFish run. Also, calcofi_use doesn't include any complete 0s (0 count and 0 reads)
+
+plotting_drop_outs %>% 
+  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha", # 262 obs
+                              alpha >-0.07  ~"Medium Alpha", # 3144 obs
+                              TRUE ~"Low Alpha")) %>% # 524 obs
+    mutate(larval_abundance = case_when(larval_counts >10  ~ ">10 Larvae",# 234
+                              larval_counts >0  ~ ">0 Larvae", # 1029
+                              TRUE ~"No Larvae")) %>% # 2667
+  # lets remove the 3x non-detections
+        filter(Drop_outs != "All zero") -> plotting_drop_outs_2 
+
+
+plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
+
+plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae",  ">0 Larvae", ">10 Larvae"))
+
+plotting_drop_outs_2 %>% 
+  ungroup() %>% 
+  group_by(alpha_group,larval_abundance) %>% 
+  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>% 
+  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
+
+ggsave(
+file = here::here("figures", "punnett_no3xdrops.png"),
+width = 14,
+height = 8
+)
+
+```
+
+```{r 9-bin Heat Map (no partial non-detections)}
+# Here, we are including only full detection species (3x nonzero reads) and full nondetections (3x zero reads). We are still including species within a sample that were not detected via microscopy, but show up in MiFish run, as long as they appear in all 3 technical repplciates. Also, calcofi_use doesn't include any complete 0s (0 count and 0 reads)
+
+plotting_drop_outs %>% 
+  mutate(alpha_group = case_when(alpha > 0  ~ "High Alpha",
+                                 alpha >-0.07  ~ "Medium Alpha",
+                                 TRUE ~ "Low Alpha")) %>% 
+  mutate(larval_abundance = case_when(larval_counts >100  ~ ">100 Larvae",
+                                      larval_counts > 10  ~ ">10 Larvae",
+                                 larval_counts > 0  ~ ">0 Larvae",
+                                 TRUE ~ "No Larvae")) %>% 
+            filter(larval_abundance != "No Larvae") %>% 
+            filter(Drop_outs == "All zero" | Drop_outs == "Three reps above zero") -> plotting_drop_outs_3
+
+
+plotting_drop_outs_3$alpha_group <- factor(plotting_drop_outs_3$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
+
+plotting_drop_outs_3$larval_abundance <- factor(plotting_drop_outs_3$larval_abundance, levels = c(">0 Larvae", ">10 Larvae", ">100 Larvae"))
+
+plotting_drop_outs_3 %>% 
+  ungroup() %>% 
+  group_by(alpha_group,larval_abundance) %>% 
+  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>% 
+  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
+
+ggsave(
+file = here::here("figures", "punnett_3xdrops_3xdetections_only.png"),
+width = 14,
+height = 8
+)
+
+
+```
+
+
+
+
+# Moncho's idea for fluid map
 ```{r Heat Map Surface (fluid)}
 grandmin <- -0.01
 grandmax <- 1.1
@@ -117,139 +204,20 @@ height = 8
 
 ```
 
-```{r 9-bin Heat Map}
-plotting_drop_outs %>% 
-  mutate(alpha_group = case_when(alpha > 0  ~ "High Alpha",
-                                 alpha >-0.07  ~ "Medium Alpha",
-                                 TRUE ~ "Low Alpha")) %>% 
-  mutate(larval_abundance = case_when(larval_counts >100  ~ ">100 Larvae",
-                                      larval_counts > 10  ~ ">10 Larvae",
-                                 larval_counts > 0  ~ ">0 Larvae",
-                                 TRUE ~ "No Larvae")) -> plotting_drop_outs_2
-
-plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
-
-plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae", ">0 Larvae", ">10 Larvae", ">100 Larvae"))
-
-plotting_drop_outs_2 %>% 
-  ungroup() %>% 
-  group_by(alpha_group,larval_abundance) %>% 
-  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>% 
-  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
-
-ggsave(
-file = here::here("figures", "tech_drop_tile.png"),
-width = 14,
-height = 8
-)
-
-
-```
-
-```{r 6-bin Heat Map (removing replicates with 3 zero-reads)}
-plotting_drop_outs %>% 
-  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
-                              alpha >-0.07  ~"Medium Alpha",
-                              TRUE ~"Low Alpha")) %>% 
-    mutate(larval_abundance = case_when(# larval_counts >100  ~ ">100 Larvae",
-      larval_counts >10  ~ ">10 Larvae",
-                              larval_counts >0  ~ ">0 Larvae",
-                              TRUE ~"No Larvae")) -> plotting_drop_outs_2
-
-plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
-
-plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae",
-                                                                                                  ">0 Larvae",
-                                                                                                  ">10 Larvae"))
-
-plotting_drop_outs_2 %>% 
-  ungroup() %>% 
-  group_by(alpha_group,larval_abundance) %>% 
-  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>% 
-  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
-
-ggsave(
-file = here::here("figures", "tech_drop_tile_6bins.png"),
-width = 14,
-height = 8
-)
-
-
-```
-
-
-```{r 6-bin Heat Map (keeping replicates with 3 zero-reads)}
-# all I did here was comment out one line of code
-
-calcofi_use %>% 
-  filter(., !is.na(mifish_reads)) %>%  
-  group_by(ID_mifish,station_id,ext_rep) %>% 
-  dplyr::summarise(mean_prop_reads = mean(prop_reads),
-                   max_prop_reads=max(prop_reads),
-                   min_prop_reads=min(prop_reads)) %>% 
-#   filter(., max_prop_reads >0) %>% # here, leave in data that actually has all zeros 
-  mutate(Drop_outs = case_when(min_prop_reads > 0 & max_prop_reads > 0 ~"Three reps above zero",
-                               min_prop_reads == 0 & max_prop_reads > 0 ~"One rep is zero",
-                               min_prop_reads == 0 & max_prop_reads == 0 ~"All zero")) -> calcofi_dropout_prop
-
-
-calcofi_use %>% 
-  filter(., !is.na(mifish_reads)) %>%  
-  filter(larval_counts >0) %>% 
-  group_by(ID_mifish,station_id,ext_rep) %>% 
-  dplyr::summarise(Drop_out_count = sum(prop_reads>0)) %>% 
-  mutate(., drop_prop = 1- Drop_out_count/3)-> calcofi_dropout_prop2
-
-
-calcofi_use %>% 
-  filter(., !is.na(mifish_reads)) %>%  
-  filter(larval_counts >0) %>% 
-  group_by(ID_mifish,station_id,ext_rep) %>% 
-  left_join(calcofi_dropout_prop) %>% 
-  left_join(calcofi_dropout_prop2) %>% 
-  filter(., !is.na(mean_prop_reads))-> plotting_drop_outs
-
-
-
-plotting_drop_outs %>% 
-  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha",
-                                 alpha >-0.07  ~"Medium Alpha",
-                                 TRUE ~"Low Alpha")) %>% 
-  mutate(larval_abundance = case_when(# larval_counts >100  ~ ">100 Larvae",
-    larval_counts >10  ~ ">10 Larvae",
-    larval_counts >0  ~ ">0 Larvae",
-    TRUE ~"No Larvae")) -> plotting_drop_outs_2
-
-plotting_drop_outs_2$alpha_group <- factor(plotting_drop_outs_2$alpha_group, levels = c("Low Alpha","Medium Alpha","High Alpha"))
-
-plotting_drop_outs_2$larval_abundance <- factor(plotting_drop_outs_2$larval_abundance, levels = c("No Larvae",
-                                                                                                  ">0 Larvae",
-                                                                                                  ">10 Larvae"))
-
-plotting_drop_outs_2 %>% 
-  ungroup() %>% 
-  group_by(alpha_group,larval_abundance) %>% 
-  dplyr::summarise(`Proportion of Technical Replicates with Zero Reads`=mean(drop_prop)) %>% 
-  ggplot(aes(x=alpha_group, y=larval_abundance, fill=`Proportion of Technical Replicates with Zero Reads`)) +geom_tile()  +scale_fill_viridis_c() + xlab("Amplification Efficiency") + ylab("Abundance")
-
-ggsave(
-file = here::here("figures", "tech_drop_tile_6bins_123nondetections.png"),
-width = 14,
-height = 8
-)
-
-```
-
+# Helen's old function
 ```{r Helen's function + plot }
 # now takes long form data, also includes tech reps with 3 zeros 
-# - using Zack's proportion metric - just using cut() to make breaks
+# using cut() to make breaks
 
-drop_function_df <- calcofi_use %>%
-  filter(., !is.na(mifish_reads)) %>% 
-  filter(larval_counts > 0) 
-
-# When you change countBreaks and ampBreaks, must change levels of outputdf (lines 287-293)
-
+drop_function_df <- plotting_drop_outs %>% 
+  mutate(alpha_group = case_when(alpha > 0  ~"High Alpha", # 262 obs
+                              alpha >-0.07  ~"Medium Alpha", # 3144 obs
+                              TRUE ~"Low Alpha")) %>% # 524 obs
+    mutate(larval_abundance = case_when(larval_counts >10  ~ ">10 Larvae",# 234
+                              larval_counts >0  ~ ">0 Larvae", # 1029
+                              TRUE ~"No Larvae")) %>% # 2667
+  # lets remove the 3x non-detections
+        filter(Drop_outs != "All zero") 
 
 TechDrops.vs.CountsAmps <- function(input_df, countBreaks, ampBreaks){
   
@@ -294,7 +262,7 @@ TechDrops.vs.CountsAmps <- function(input_df, countBreaks, ampBreaks){
   return(propdrops)
 }
 
-TechDrops.vs.CountsAmps(drop_function_df, countBreaks = 2, ampBreaks = 2)
+output<- TechDrops.vs.CountsAmps(drop_function_df, countBreaks = 2, ampBreaks = 2)
 
 # final output df gives the count/amp bin combinations, the Proportion of Technical Replicates with Zero Reads in each, and the how much of the whole dataset each bin makes up
 
