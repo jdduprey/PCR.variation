@@ -9,6 +9,11 @@ library(dplyr)
 library(here)
 library(ggplot2)
 
+# **OUTDATED?** Refer instead to PCR.variation/special_issue_manuscript/code/punnett_square_figs.Rmd
+
+
+
+
 # load data
 micro_counts <- readRDS(here("special_issue_manuscript", "data", "microscopy_tech_nReads.RDS"))
 mifish_reads <- readRDS(here("special_issue_manuscript", "data", "mifish_tech_nReads.RDS"))
