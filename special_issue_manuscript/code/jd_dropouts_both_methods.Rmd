@@ -1,0 +1,165 @@
+---
+title: "jd_dropouts_both_methods"
+author: "Helen Casendino, Kai Vennemann, Joe Duprey"
+date: "1/26/2022"
+output: html_document
+---
+
+dropout code again, to see if I get the same results as Helen's 
+also, see how result differs if a bio rep can either be 0 - no drop outs, or 1 - drop outs 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+
+
+```{r read in longform data and create wideform}
+raw_reads <- read_csv(here("special_issue_manuscript/data/gallego_all_data.csv"))
+hash_annotated <- read_csv(here("special_issue_manuscript/data/gallego_hash_annotated.csv"))
+
+wide_reads <- raw_reads %>%
+  mutate(bottle = paste(site, bio, sep = "")) %>%
+  dplyr::select(tech, hash, reads, bottle) %>%
+  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>% # fill non-detections with zero, then data to longform
+  pivot_longer(cols = c("1", "2", "3"), names_to = "tech", values_to = "reads") %>%
+  group_by(hash, bottle) %>%
+  mutate(CV = sd(reads) / mean(reads)) %>% # calculate CV
+  mutate(mean_reads = mean(reads)) %>%
+  mutate(log_mean_reads = log(mean_reads)) %>%
+  pivot_wider(names_from = tech, values_from = reads) %>%
+  rename("Hash" = "hash")
+
+# join read counts and hashes with hashes and taxa labels
+wide_reads_annotated <- left_join(wide_reads, hash_annotated, by = "Hash")
+```
+
+```{r}
+
+binary_dropouts <- wide_reads %>%
+  rename("tech1"="1", "tech2"="2", "tech3"="3") %>% 
+  mutate(
+    dropout_state = case_when(
+      tech1 == 0 | tech2 == 0 | tech3 == 0 ~ 0,
+      TRUE ~ 1
+    )
+  )
+
+binary_dropouts_annotated <- left_join(binary_dropouts, hash_annotated, by = "Hash")
+
+make_kingdom_barchart <- function(wide_df, taxa_list){
+  
+  proportion_drops <- data.frame(kingdom = taxa_list, dropProp = NA)
+  
+  j <- 1
+  for(i in taxa_list){
+    print(i)
+    df <- wide_df %>% 
+      filter(kingdom %in% i)
+    
+    drop_rows <- sum(df$dropout_state == 1)
+    print(drop_rows)
+    total_rows <- nrow(df)
+    print(total_rows)
+    
+    calc_prop <- drop_rows / total_rows
+    
+    proportion_drops[j,2] <- calc_prop
+   
+    j <- j + 1
+  }
+  
+  return(proportion_drops)
+    
+}
+
+barplot_kingdom <- make_kingdom_barchart(binary_dropouts_annotated, c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Metazoa", "Rhodophyta","Dinoflagellates"))
+
+ggplot(barplot_kingdom, aes(x = kingdom, y = dropProp)) +
+  geom_bar(stat="identity") + ylab("Prop of Tech Reps with P/A Discrepancy")
+
+```
+
+```{r}
+
+make_phyla_barchart <- function(wide_df, taxa_list){
+  
+  proportion_drops <- data.frame(phylum = taxa_list, dropProp = NA)
+  
+  j <- 1
+  for(i in taxa_list){
+    print(i)
+    df <- wide_df %>% 
+      filter(phylum %in% i)
+    
+    drop_rows <- sum(df$dropout_state == 1)
+    print(drop_rows)
+    total_rows <- nrow(df)
+    print(total_rows)
+    
+    calc_prop <- drop_rows / total_rows
+    
+    proportion_drops[j,2] <- calc_prop
+   
+    j <- j + 1
+  }
+  
+  return(proportion_drops)
+    
+}
+
+print(unique(binary_dropouts_annotated$phylum))
+
+barplot_phyla <- make_phyla_barchart(binary_dropouts_annotated, c("Annelida", "Chordata", "Porifera", "Arthropoda","Rotifera", "Mollusca", "Bryozoa", "Cnidaria", "Echinodermata", "Bacillariophyta"))
+
+many_phyla <- make_phyla_barchart(binary_dropouts_annotated, unique(binary_dropouts_annotated$phylum))
+
+ggplot(barplot_phyla, aes(x = phylum, y = dropProp)) +
+  geom_bar(stat="identity") + ylab("Proportion of Tech Reps with Drop")
+
+ggplot(many_phyla, aes(x = phylum, y = dropProp)) +
+  geom_bar(stat="identity") + ylab("Proportion of Tech Reps with Drop") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+```{r}
+
+make_species_barchart <- function(wide_df, taxa_list){
+  
+  proportion_drops <- data.frame(species = taxa_list, dropProp = NA)
+  
+  j <- 1
+  for(i in taxa_list){
+    print(i)
+    df <- wide_df %>% 
+      filter(species %in% i)
+    
+    drop_rows <- sum(df$dropout_state == 1)
+    print(drop_rows)
+    total_rows <- nrow(df)
+    print(total_rows)
+    
+    calc_prop <- drop_rows / total_rows
+    
+    proportion_drops[j,2] <- calc_prop
+   
+    j <- j + 1
+  }
+  
+  return(proportion_drops)
+    
+}
+
+
+barplot_species <- make_species_barchart(binary_dropouts_annotated, unique(binary_dropouts_annotated$species))
+
+ggplot(barplot_species, aes(x = dropProp)) +
+  geom_histogram() +
+  xlab("Proportion of tech reps with P/A discrepancy") +
+  ylab("Count (individual species)")
+  
+```
+
