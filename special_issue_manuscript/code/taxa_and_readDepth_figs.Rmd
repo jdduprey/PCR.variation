@@ -1,0 +1,189 @@
+---
+title: "Spread among technical replicates based on # of detections or taxon"
+author: "Ramon Gallego, Helen Casendino, Kai Vennemann, Joe Duprey, Zack Gold"
+date: "1/22/2022"
+output: html_document
+---
+
+Creates the following figures in PCR.variation/figures:
+- dropProp_kingdom.png
+- dropProp_phylum.png
+- dropProp_readDepth.png
+
+```{r setup & dependencies, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r read in longform data and create wideform}
+raw_reads <- read_csv(here("special_issue_manuscript/data/gallego_all_data.csv"))
+hash_annotated <- read_csv(here("special_issue_manuscript/data/gallego_hash_annotated.csv"))
+
+
+wide_reads <- raw_reads %>%
+  mutate(bottle = paste(site, bio, sep = "")) %>%
+  dplyr::select(tech, hash, reads, bottle) %>%
+  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>% # fill non-detections with zero, then data to longform
+  pivot_longer(cols = c("1", "2", "3"), names_to = "tech", values_to = "reads") %>%
+  group_by(hash, bottle) %>%
+  mutate(CV = sd(reads) / mean(reads)) %>% # calculate CV
+  mutate(mean_reads = mean(reads)) %>%
+  mutate(log_mean_reads = log(mean_reads)) %>%
+  pivot_wider(names_from = tech, values_from = reads) %>%
+  rename("Hash" = "hash")
+
+# join read counts and hashes with hashes and taxa labels
+wide_reads_annotated <- left_join(wide_reads, hash_annotated, by = "Hash")
+```
+
+# Exploring (<3) detections
+
+```{r Per taxon, percentage of technical replicates that are 0; kingdom}
+# goes with zacks way of looking at drops - within a kingdom, and within each hash/bottle within that kingdom, get the proportion of tech reps that are 0 (0, 1/3, 2/3, or 1). Then for each kingdom, get an average proportion of dropped tech reps. 
+
+prop.drops <- function(wide_df, kingdoms){
+
+  proportion_drops <- data.frame(kingdom = kingdoms, proportionDrops = NA)
+ 
+   for(i in 1:length(kingdoms)){
+    
+    df <- wide_df %>% filter(kingdom == kingdoms[i]) %>% 
+         pivot_longer(c("1", "2", "3"), names_to = "tech", values_to = "reads")
+  
+     df <- df %>% group_by(Hash, bottle) %>% 
+         summarise(Drop_out_count = sum(reads > 0)) %>% 
+           mutate(., drop_prop = 1 - Drop_out_count / 3) 
+   proportion_drops[i,2] <- mean(df$drop_prop)
+   
+  }
+  
+  print("SAMPLE SIZES:")
+  for(i in kingdoms){
+    one_kingdom <- wide_df %>%
+      filter(kingdom %in% i)
+    
+    print(paste(i, nrow(one_kingdom)))
+   }
+    return(proportion_drops)
+}
+
+all_king_drops <- prop.drops(wide_reads_annotated, c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Metazoa", "Rhodophyta","Dinoflagellates") )
+
+ggplot(all_king_drops, aes(x = kingdom, y = proportionDrops)) +
+  geom_bar(stat="identity") + ylab("Proportion of Dropped Technical Replicates")
+
+ggsave(
+file = here::here("figures", "dropProp_kingdom.png"),
+width = 14,
+height = 8
+)
+```
+
+```{r phylum}
+
+by_phylum_drops <- function(wide_df, phyla){
+
+  proportion_drops <- data.frame(phylum = phyla, proportionDrops = NA)
+  for(i in 1:length(phyla)){
+    df <- wide_df %>% filter(phylum == phyla[i]) %>% 
+         pivot_longer(c("1", "2", "3"), names_to = "tech", values_to = "reads")
+  
+       df <- df %>% group_by(Hash, bottle) %>% 
+         summarise(Drop_out_count = sum(reads > 0)) %>% 
+           mutate(., drop_prop = 1 - Drop_out_count / 3) 
+   proportion_drops[i,2] <- mean(df$drop_prop)
+   
+  }
+  
+  print("SAMPLE SIZES:")
+  for(i in phyla){
+    one_phylum <- wide_df %>%
+      filter(phylum %in% i)
+    
+    print(paste(i, nrow(one_phylum)))
+   }
+  
+    return(proportion_drops)
+}
+
+print(unique(wide_reads_annotated$phylum))
+
+phyla_bar_df_1 <- by_phylum_drops(wide_reads_annotated, c("Annelida", "Chordata", "Porifera", "Arthropoda","Rotifera", "Mollusca", "Bryozoa", "Cnidaria", "Echinodermata", "Bacillariophyta"))
+
+ggplot(phyla_bar_df_1, aes(x = phylum, y = proportionDrops)) +
+  geom_bar(stat="identity")  + ylab("Proportion of Dropped Technical Replicates")
+
+ggsave(
+file = here::here("figures", "dropProp_phylum.png"),
+width = 14,
+height = 8
+)
+
+```
+
+```{r arthropods}
+
+just_arthropods <- wide_reads_annotated %>%
+  filter(phylum %in% c("Arthropoda"))
+
+by_order_drops <- function(wide_df, orders){
+
+  proportion_drops <- data.frame(order = orders, proportionDrops = NA)
+  for(i in 1:length(orders)){
+    df <- wide_df[wide_df$order == orders[i],]
+  
+    dropouts <- c(which(df$`1` == 0),
+                which(df$`2` == 0),
+                which(df$`3` == 0))
+   proportion_drops[i,2] <- length(unique(dropouts)) / nrow(df)
+  }
+  
+  print("SAMPLE SIZES:")
+  for(i in orders){
+    one_order <- wide_df %>%
+      filter(order %in% i)
+    
+    print(paste(i, nrow(one_order)))
+   }
+  
+    return(proportion_drops)
+}
+
+print(unique(just_arthropods$order))
+
+arthropod_breakdown <- by_order_drops(wide_reads_annotated, c("Calanoida", "Sessilia", "Diptera", "Decapoda",      
+                                                              "Harpacticoida", "Kentrogonida", "Amphipoda",    
+                                                              "Cyclopoida", "Diplostraca", "Lepidoptera",
+                                                              "Sarcoptiformes", "Isopoda", "Neelipleona",
+                                                              "Euphausiacea", "Poecilostomatoida"))
+
+# is this the behavior we expect?? - joe 
+ggplot(arthropod_breakdown, aes(x = order, y = proportionDrops)) +
+  geom_bar(stat="identity") 
+```
+
+# Exploring Effect of read depth 
+
+```{r}
+
+  readDepth_propDrops_df <- wide_reads_annotated  %>% 
+         pivot_longer(c("1", "2", "3"), names_to = "tech", values_to = "reads") %>% 
+          unite(col = "bottle_tech", c("bottle", "tech"), sep = ".")  %>% 
+          group_by(bottle_tech) %>% mutate("hash_n" = n()) %>% 
+            mutate("propDrops" = sum(reads ==0)/hash_n) %>% mutate("tech_readDepth" = sum(reads)) %>% 
+            ungroup() %>% 
+            group_by(tech_readDepth) %>% 
+              summarise("mean_propDrop" = mean(propDrops))
+
+ggplot(readDepth_propDrops_df, aes(x = tech_readDepth, y = mean_propDrop)) +
+  geom_point() + ylab("Mean Proportion of Dropped Technical Replicates") + xlab("Read Depth")
+
+ggsave(
+file = here::here("figures", "dropProp_readDepth.png"),
+width = 14,
+height = 8
+)
+```
+
