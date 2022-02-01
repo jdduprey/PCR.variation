@@ -45,10 +45,28 @@ binary_dropouts <- wide_reads %>%
   mutate(
     dropout_state = case_when(
       tech1 == 0 | tech2 == 0 | tech3 == 0 ~ 1,
-      TRUE ~ 0
-    ))
+      TRUE ~ 0)) %>%
+  separate(col=bottle, remove=FALSE, into=c("site", "date"), sep = 2) %>%
+  separate(col=date, remove=FALSE, into=c("year", "month"), sep = 4) %>%
+  separate(col=month, remove=TRUE, into=c("month", "foo"), sep = 2) %>%
+  select(-foo) %>%
+  mutate(
+    month_str = case_when(
+      month == "01" ~ "Jan",
+      month == "03" ~ "Mar",
+      month == "05" ~ "May",
+      month == "06" ~ "June",
+      month == "07" ~ "July",
+      month == "08" ~ "Aug",
+      month == "09" ~ "Sep",
+      month == "10" ~ "Oct",
+      month == "11" ~ "Nov"))
 
 binary_dropouts_annotated <- left_join(binary_dropouts, hash_annotated, by = "Hash")
+
+print(unique(binary_dropouts_annotated$site))  
+print(unique(binary_dropouts_annotated$month))
+print(unique(binary_dropouts_annotated$month_str))
 
 make_taxa_barchart <- function(wide_df, taxa_list, taxa_level){
   
@@ -143,5 +161,58 @@ ggplot(barplot_species, aes(x = dropProp)) +
   xlab("Proportion of tech reps with P/A discrepancy") +
   ylab("Count (individual species)")
   
+```
+```{r kingdom prop drop by month}
+
+print(unique(binary_dropouts_annotated$month_str))
+print(typeof(unique(binary_dropouts_annotated$month_str)))
+
+make_seasonal_df <- function(wide_df, taxa_list, taxa_level){
+  
+  seasonal_drops <- data.frame(taxa_groups = taxa_list,"Jan"=NA, "Mar"=NA, "May"=NA,
+                                 "June"=NA, "July"=NA, "Aug"=NA, "Sep"=NA, 
+                                 "Oct"=NA, "Nov"=NA)
+    j <- 1
+    for(i in taxa_list){
+      print(i)
+      df <- wide_df %>%
+        pivot_longer(cols = c("tech1", "tech2", "tech3"), names_to = "tech", values_to = "reads") %>%
+        filter(.data[[taxa_level]] %in% i)
+    
+      
+      for(k in colnames(seasonal_drops)[-1]){
+        print(k)
+        
+        df_sm <- df %>%
+          filter(.data[["month_str"]] %in% k) ## the problem is here 
+        
+          drop_rows <- sum(df_sm$reads == 0)
+          print(drop_rows)
+          total_rows <- nrow(df_sm)
+          print(total_rows)
+          calc_prop <- drop_rows / total_rows
+
+          seasonal_drops[j, k] <- calc_prop}
+      
+      j <- j + 1
+      
+
+      }
+  
+  return(seasonal_drops)
+    
+}
+
+dropouts_by_season_df <- make_seasonal_df(binary_dropouts_annotated, c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Metazoa", "Rhodophyta","Dinoflagellates"), "kingdom")
+
+dropouts_by_season_df <- dropouts_by_season_df %>%
+  pivot_longer(cols = c("Jan", "Mar", "May", "June", "July", "Aug", "Sep", "Oct", "Nov"), 
+               names_to = "month", values_to = "prop_drop") 
+
+dropouts_by_season_df$month <- factor(dropouts_by_season_df$month, levels = c("Jan", "Mar", "May", "June", "July", "Aug", "Sep", "Oct", "Nov"))
+
+ggplot(dropouts_by_season_df, aes(x=month, y=prop_drop, group=taxa_groups))  +
+  geom_point(aes(color=taxa_groups)) +
+  geom_line(aes(color=taxa_groups))
 ```
 
