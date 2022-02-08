@@ -216,3 +216,58 @@ ggplot(dropouts_by_season_df, aes(x=month, y=prop_drop, group=taxa_groups))  +
   geom_line(aes(color=taxa_groups))
 ```
 
+```{r Stramenopiles phylum plot }
+
+make_seasonal_df_phyl <- function(wide_df, taxa_list, taxa_level){
+  
+  seasonal_drops <- data.frame(taxa_groups = taxa_list,"Jan"=NA, "Mar"=NA, "May"=NA,
+                               "June"=NA, "July"=NA, "Aug"=NA, "Sep"=NA, 
+                               "Oct"=NA, "Nov"=NA)
+  j <- 1
+  for(i in taxa_list){
+    print(i)
+    df <- wide_df %>%
+      pivot_longer(cols = c("tech1", "tech2", "tech3"), names_to = "tech", values_to = "reads") %>%
+      filter(.data[[taxa_level]] %in% i)
+    
+    
+    for(k in colnames(seasonal_drops)[-1]){
+      print(k)
+      
+      df_sm <- df %>%
+        filter(.data[["month_str"]] %in% k) ## the problem is here 
+      
+      drop_rows <- sum(df_sm$reads == 0)
+      print(drop_rows)
+      total_rows <- nrow(df_sm)
+      print(total_rows)
+      calc_prop <- drop_rows / total_rows
+      
+      seasonal_drops[j, k] <- calc_prop}
+    
+    j <- j + 1
+    
+    
+  }
+  
+  return(seasonal_drops)
+  
+}
+
+dropouts_by_season_df <- make_seasonal_df_phyl(binary_dropouts_annotated, c("Bacillariophyta" ,   "Chrysophyceae","Dictyochophyceae","Oomycetes",       
+                                                                        "Phaeophyceae"), "phylum")
+
+dropouts_by_season_df <- dropouts_by_season_df %>%
+  pivot_longer(cols = c("Jan", "Mar", "May", "June", "July", "Aug", "Sep", "Oct", "Nov"), 
+               names_to = "month", values_to = "prop_drop") 
+
+dropouts_by_season_df$month <- factor(dropouts_by_season_df$month, levels = c("Jan", "Mar", "May", "June", "July", "Aug", "Sep", "Oct", "Nov"))
+
+ggplot(dropouts_by_season_df, aes(x=month, y=prop_drop, group=taxa_groups))  +
+  geom_point(aes(color=taxa_groups)) +
+  geom_line(aes(color=taxa_groups)) + 
+  scale_color_brewer(palette="Paired") + 
+  theme_classic()  +
+  labs(col = "Phylum", y = "Stochastic Dropout Rate", x = "Month") 
+
+```
