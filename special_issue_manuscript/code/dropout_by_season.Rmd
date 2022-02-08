@@ -8,11 +8,14 @@ output: html_document
 dropout code again, to see if I get the same results as Helen's 
 also, see how result differs if a bio rep can either be 0 - no drop outs, or 1 - drop outs 
 
+last section contains code for dropouts by season plot
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(tidyverse)
 library(ggplot2)
+library(RColorBrewer)
 ```
 
 
@@ -162,6 +165,7 @@ ggplot(barplot_species, aes(x = dropProp)) +
   ylab("Count (individual species)")
   
 ```
+
 ```{r kingdom prop drop by month}
 
 print(unique(binary_dropouts_annotated$month_str))
@@ -211,8 +215,39 @@ dropouts_by_season_df <- dropouts_by_season_df %>%
 
 dropouts_by_season_df$month <- factor(dropouts_by_season_df$month, levels = c("Jan", "Mar", "May", "June", "July", "Aug", "Sep", "Oct", "Nov"))
 
+# NEED TO BEAUTIFY FOR MANUSCRIPT :)
+
+kingdom_colors = c("Dinoflagellates" = "#5E4FA2", "Stramenopiles" = "#3288BD", 
+                   "Haptophyceae" = "#ABDDA4", "Metazoa" = "#F46D43", 
+                   "Rhodophyta" = "#D53E4F", "Viridiplantae" = "#3288BD")
+
+print(unique(dropouts_by_season_df$taxa_groups))
+
 ggplot(dropouts_by_season_df, aes(x=month, y=prop_drop, group=taxa_groups))  +
   geom_point(aes(color=taxa_groups)) +
-  geom_line(aes(color=taxa_groups))
+  geom_line(aes(color=taxa_groups)) +
+  labs(title = "Seasonal Dropout Proportion of Salish Sea Samples",
+       x = "Month", y = "Proportion of Dropouts",
+       color = "Kingdom") +
+  scale_color_manual(values = kingdom_colors) +
+  theme_classic() # +
+  #theme(
+  #  panel.grid.major.y = element_line())
+  # theme(strip.background = element_rect(fill = NA, color = NA),
+  #       panel.background = element_rect(fill = NA, color = NA),
+  #       panel.grid.major = element_blank(),
+  #       panel.grid.minor = element_blank(),
+  #       panel.spacing.x = unit(0, "lines"),
+  #       panel.spacing.y = unit(0, "lines"))
+
+  
+
+ggplot(dropouts_by_season_df, aes(x=month, y=prop_drop))  +
+  geom_boxplot()
+```
+```{r experimenting with colors}
+
+display.brewer.all()
+
 ```
 
