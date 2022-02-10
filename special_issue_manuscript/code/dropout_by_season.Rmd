@@ -1,0 +1,505 @@
+---
+title: "jd_dropouts_both_methods"
+author: "Helen Casendino, Kai Vennemann, Joe Duprey"
+date: "1/26/2022"
+output: html_document
+---
+
+dropout code again, to see if I get the same results as Helen's 
+also, see how result differs if a bio rep can either be 0 - no drop outs, or 1 - drop outs 
+
+last section contains code for dropouts by season plot
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+```
+
+
+
+
+```{r read in longform data and create wideform}
+raw_reads <- read_csv(here("special_issue_manuscript/data/gallego_all_data.csv"))
+hash_annotated <- read_csv(here("special_issue_manuscript/data/gallego_hash_annotated.csv"))
+
+wide_reads <- raw_reads %>%
+  mutate(bottle = paste(site, bio, sep = "")) %>%
+  dplyr::select(tech, hash, reads, bottle) %>%
+  pivot_wider(names_from = tech, values_from = reads, values_fill = 0) %>% # fill non-detections with zero, then data to longform
+  pivot_longer(cols = c("1", "2", "3"), names_to = "tech", values_to = "reads") %>%
+  group_by(hash, bottle) %>%
+  mutate(CV = sd(reads) / mean(reads)) %>% # calculate CV
+  mutate(mean_reads = mean(reads)) %>%
+  mutate(log_mean_reads = log(mean_reads)) %>%
+  pivot_wider(names_from = tech, values_from = reads) %>%
+  rename("Hash" = "hash")
+
+# join read counts and hashes with hashes and taxa labels
+wide_reads_annotated <- left_join(wide_reads, hash_annotated, by = "Hash")
+```
+
+```{r}
+
+binary_dropouts <- wide_reads %>%
+  rename("tech1"="1", "tech2"="2", "tech3"="3") %>% 
+  mutate(
+    dropout_state = case_when(
+      tech1 == 0 | tech2 == 0 | tech3 == 0 ~ 1,
+      TRUE ~ 0)) %>%
+  separate(col=bottle, remove=FALSE, into=c("site", "date"), sep = 2) %>%
+  separate(col=date, remove=FALSE, into=c("year", "month"), sep = 4) %>%
+  separate(col=month, remove=TRUE, into=c("month", "foo"), sep = 2) %>%
+  select(-foo) %>%
+  mutate(
+    month_str = case_when(
+      month == "01" ~ "Jan",
+      month == "03" ~ "Mar",
+      month == "05" ~ "May",
+      month == "06" ~ "June",
+      month == "07" ~ "July",
+      month == "08" ~ "Aug",
+      month == "09" ~ "Sep",
+      month == "10" ~ "Oct",
+      month == "11" ~ "Nov"))
+
+binary_dropouts_annotated <- left_join(binary_dropouts, hash_annotated, by = "Hash")
+
+print(unique(binary_dropouts_annotated$site))  
+print(unique(binary_dropouts_annotated$month))
+print(unique(binary_dropouts_annotated$month_str))
+
+make_taxa_barchart <- function(wide_df, taxa_list, taxa_level){
+  
+  proportion_drops <- data.frame(taxa_groups = taxa_list, dropProp = NA, totProp = NA)
+  
+  j <- 1
+  for(i in taxa_list){
+    print(i)
+    df <- wide_df %>% 
+      filter(.data[[taxa_level]] %in% i) 
+    
+    drop_rows <- sum(df$dropout_state == 1)
+    print(drop_rows)
+    total_rows <- nrow(df)
+    print(total_rows)
+
+    calc_prop <- drop_rows / total_rows
+    
+    proportion_drops[j,2] <- calc_prop
+    j <- j + 1
+    }
+    
+    print("============================================")
+    
+    j <- 1
+    for(i in taxa_list){
+      print(i)
+      df <- wide_df %>%
+        pivot_longer(cols = c("tech1", "tech2", "tech3"), names_to = "tech", values_to = "reads") %>%
+        filter(.data[[taxa_level]] %in% i)
+      
+      drop_rows <- sum(df$reads == 0)
+      print(drop_rows)
+      total_rows <- nrow(df)
+      print(total_rows)
+      
+      calc_prop <- drop_rows / total_rows
+      
+      proportion_drops[j,3] <- calc_prop
+      j <- j + 1
+      }
+  
+  return(proportion_drops)
+    
+}
+
+barplot_kingdom <- make_taxa_barchart(binary_dropouts_annotated, c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Metazoa", "Rhodophyta","Dinoflagellates"), "kingdom")
+
+barplot_phyla <- make_taxa_barchart(binary_dropouts_annotated, c("Annelida", "Chordata", "Porifera", "Arthropoda","Rotifera", "Mollusca", "Bryozoa", "Cnidaria", "Echinodermata", "Bacillariophyta"), "phylum")
+
+many_phyla <- make_taxa_barchart(binary_dropouts_annotated, unique(binary_dropouts_annotated$phylum), "phylum")
+
+# kingdom zac methods
+ggplot(barplot_kingdom, aes(x = taxa_groups, y = totProp)) +
+  geom_bar(stat="identity") + ylab("Total prop of drops")
+
+# scatter
+ggplot(barplot_kingdom, aes(x = dropProp, y = totProp)) +
+  geom_point()
+
+# kingdom
+ggplot(barplot_kingdom, aes(x = taxa_groups, y = dropProp)) +
+  geom_bar(stat="identity") + ylab("Prop of Tech Reps with P/A Discrepancy")
+
+# some phyla
+ggplot(barplot_phyla, aes(x = taxa_groups, y = dropProp)) +
+  geom_bar(stat="identity") + ylab("Prop of Tech Reps with P/A Discrepancy")
+
+phyla_ascend <- many_phyla %>%
+  arrange(totProp)
+
+# many phyla
+ggplot(many_phyla, aes(x = taxa_groups, y = dropProp)) +
+  geom_bar(stat="identity") + ylab("Proportion of Bio Rep with P/A Discrepancy") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# many phyla zack's method
+ggplot(many_phyla, aes(x = taxa_groups, y = totProp)) +
+  geom_bar(stat="identity") + ylab("Proportion of Tech Reps with Drop") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# many phyla scatter
+ggplot(many_phyla, aes(x = dropProp, y = totProp)) +
+  geom_point()
+```
+```{r}
+
+ggplot(barplot_species, aes(x = dropProp)) +
+  geom_histogram() +
+  xlab("Proportion of tech reps with P/A discrepancy") +
+  ylab("Count (individual species)")
+  
+```
+
+```{r kingdom prop drop by month}
+
+print(unique(binary_dropouts_annotated$month_str))
+print(typeof(unique(binary_dropouts_annotated$month_str)))
+
+make_seasonal_df <- function(wide_df, taxa_list, taxa_level){
+  
+  seasonal_drops <- data.frame(taxa_groups = taxa_list,"Jan"=NA, "Mar"=NA, "May"=NA,
+                                 "June"=NA, "July"=NA, "Aug"=NA, "Sep"=NA, 
+                                 "Oct"=NA, "Nov"=NA)
+    j <- 1
+    for(i in taxa_list){
+      print(i)
+      df <- wide_df %>%
+        pivot_longer(cols = c("tech1", "tech2", "tech3"), names_to = "tech", values_to = "reads") %>%
+        filter(.data[[taxa_level]] %in% i)
+    
+      
+      for(k in colnames(seasonal_drops)[-1]){
+        print(k)
+        
+        df_sm <- df %>%
+          filter(.data[["month_str"]] %in% k) ## the problem is here 
+        
+          drop_rows <- sum(df_sm$reads == 0)
+          print(drop_rows)
+          total_rows <- nrow(df_sm)
+          print(total_rows)
+          calc_prop <- drop_rows / total_rows
+
+          seasonal_drops[j, k] <- calc_prop}
+      
+      j <- j + 1
+      
+
+      }
+  
+  return(seasonal_drops)
+    
+}
+
+dropouts_by_season_df <- make_seasonal_df(binary_dropouts_annotated, c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Metazoa", "Rhodophyta","Dinoflagellates"), "kingdom")
+
+dropouts_by_season_df <- dropouts_by_season_df %>%
+  pivot_longer(cols = c("Jan", "Mar", "May", "June", "July", "Aug", "Sep", "Oct", "Nov"), 
+               names_to = "month", values_to = "prop_drop") 
+
+dropouts_by_season_df$month <- factor(dropouts_by_season_df$month, levels = c("Jan", "Mar", "May", "June", "July", "Aug", "Sep", "Oct", "Nov"))
+
+# NEED TO BEAUTIFY FOR MANUSCRIPT :)
+
+kingdom_colors = c("Dinoflagellates" = "#5E4FA2", "Stramenopiles" = "#3288BD", 
+                   "Haptophyceae" = "#ABDDA4", "Metazoa" = "#F46D43", 
+                   "Rhodophyta" = "#D53E4F", "Viridiplantae" = "#3288BD")
+
+print(unique(dropouts_by_season_df$taxa_groups))
+
+ggplot(dropouts_by_season_df, aes(x=month, y=prop_drop, group=taxa_groups))  +
+  geom_point(aes(color=taxa_groups)) +
+  geom_line(aes(color=taxa_groups)) +
+  labs(title = "Seasonal Dropout Proportion of Salish Sea Samples",
+       x = "Month", y = "Proportion of Dropouts",
+       color = "Kingdom") +
+  scale_color_manual(values = kingdom_colors) +
+  theme_classic() # +
+  #theme(
+  #  panel.grid.major.y = element_line())
+  # theme(strip.background = element_rect(fill = NA, color = NA),
+  #       panel.background = element_rect(fill = NA, color = NA),
+  #       panel.grid.major = element_blank(),
+  #       panel.grid.minor = element_blank(),
+  #       panel.spacing.x = unit(0, "lines"),
+  #       panel.spacing.y = unit(0, "lines"))
+
+  
+
+ggplot(dropouts_by_season_df, aes(x=month, y=prop_drop))  +
+  geom_boxplot()
+```
+```{r experimenting with colors}
+
+display.brewer.all()
+
+```
+
+# Helen makes 4 plots: 
+     - For kingdom and phylum (phyla within stramenopiles), take read proportion (within a bottle) for an asv and average across bottles for each asv. For each asv within bottle, also record proportion of droppoed tech reps (0/3, 1/3, 2/3). For each taxon, plot mean read proportion against mean proportion drops, and separate by season (nonbloom(jan mar oct nov) vs. bloom(everything else))
+     - Repeat but plot for each unique asv, and color code by taxon 
+
+
+```{r Kingdom plots - HC}
+binary_dropouts_annotated_withPropDrops <- binary_dropouts_annotated %>% 
+  pivot_longer(c(tech1, tech2, tech3), names_to = "tech", values_to = "reads") %>% 
+  group_by(bottle) %>% 
+  mutate(tot_bottle = sum(reads)) %>% 
+  group_by(Hash, bottle) %>% 
+  mutate(tot_hash_bottle = sum(reads)) %>% 
+  mutate(read_proportion = tot_hash_bottle/tot_bottle) %>% 
+  mutate(PropDropsWithinHashBottle = length(which(reads == 0))/length(reads)) %>% 
+                       mutate(season = case_when(month == "01" ~ "No_Bloom",
+                                                 month == "03" ~ "No_Bloom",
+                                                 month == "10" ~ "No_Bloom",
+                                                  month == "11" ~ "No_Bloom",
+                                                 TRUE~ "Bloom")) 
+
+# Bloom v non bloom by kingdom with mean read prop and prop drops
+
+taxa_list <- c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Metazoa", "Rhodophyta","Dinoflagellates")
+
+king_dropouts_by_season_df <- binary_dropouts_annotated_withPropDrops %>% group_by(kingdom, season) %>% 
+  summarise(mean_read_prop = mean(read_proportion), mean_drop_prop = mean(PropDropsWithinHashBottle)) %>% 
+  filter(kingdom %in% taxa_list)
+
+king_dropouts_by_season_df$season <- factor(king_dropouts_by_season_df$season,levels = c("No_Bloom", "Bloom"))
+
+king_dropouts_by_season_df$kingdom <- factor(king_dropouts_by_season_df$kingdom,levels = c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Rhodophyta","Dinoflagellates", "Metazoa"))
+
+ ggplot(king_dropouts_by_season_df, aes(x = mean_drop_prop, y = mean_read_prop)) +
+  geom_line(aes(color = kingdom)) + 
+  geom_point(aes(color = kingdom, shape = season), size = 3) +
+    scale_color_brewer(palette = "Paired") + 
+    theme_classic()  + 
+  labs(col = "Kingdom", x = "Stochastic Dropout Rate", y = "Mean Read Proportion", 
+       title ="averaged across kingdom")  
+
+ 
+# By kingdom with mean read prop and prop drops, but use means for asvs not mean across kingdom
+
+ king_asv_dropouts_by_season_df <- binary_dropouts_annotated_withPropDrops %>% group_by(kingdom, Hash) %>% 
+  summarise(mean_read_prop = mean(read_proportion), mean_drop_prop = mean(PropDropsWithinHashBottle)) %>% 
+  filter(kingdom %in% taxa_list)
+
+king_asv_dropouts_by_season_df$kingdom <- factor(king_asv_dropouts_by_season_df$kingdom,levels = c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Rhodophyta","Dinoflagellates", "Metazoa"))
+ 
+ ggplot(king_asv_dropouts_by_season_df, aes(x = mean_drop_prop, y = mean_read_prop)) +
+  geom_point(aes(color = kingdom), size = 1, position = "jitter") +
+    scale_color_brewer(palette = "Paired") + 
+    theme_classic()  + 
+  labs(col = "Kingdom", x = "Stochastic Dropout Rate", y = "Mean Read Proportion", title ="one point per asv") 
+ 
+ 
+ # By kingdom with mean read prop and prop drops, but use means for bottles not mean across kingdom
+ king_bot_dropouts_by_season_df <- binary_dropouts_annotated_withPropDrops %>% group_by(kingdom, bottle) %>% 
+  summarise(mean_read_prop = mean(read_proportion), mean_drop_prop = mean(PropDropsWithinHashBottle)) %>% 
+  filter(kingdom %in% taxa_list)
+
+king_bot_dropouts_by_season_df$kingdom <- factor(king_bot_dropouts_by_season_df$kingdom,levels = c("Viridiplantae", "Stramenopiles", "Haptophyceae", "Rhodophyta","Dinoflagellates", "Metazoa"))
+ 
+ ggplot(king_bot_dropouts_by_season_df, aes(x = mean_drop_prop, y = mean_read_prop)) +
+  geom_point(aes(color = kingdom), size = 1, position = "jitter") +
+    scale_color_brewer(palette = "Paired") + 
+    theme_classic()  + 
+  labs(col = "Kingdom", x = "Stochastic Dropout Rate", y = "Mean Read Proportion", title ="one point per bottle") 
+ 
+ 
+```
+
+
+```{r Phylum Stramenopiles plots - HC}
+
+# Bloom v non bloom by kingdom with mean read prop and prop drops
+
+taxa_list <- c( "Bacillariophyta" , "Chrysophyceae","Dictyochophyceae","Raphidophyceae", "Bicosoecida",   "Phaeophyceae")
+
+stram_dropouts_by_season_df <- binary_dropouts_annotated_withPropDrops %>% group_by(phylum, season) %>% 
+  summarise(mean_read_prop = mean(read_proportion), mean_drop_prop = mean(PropDropsWithinHashBottle)) %>% 
+  filter(phylum %in% taxa_list)
+
+stram_dropouts_by_season_df$season <- factor(stram_dropouts_by_season_df$season,levels = c("No_Bloom", "Bloom"))
+
+stram_dropouts_by_season_df$phylum <- factor(stram_dropouts_by_season_df$phylum,levels = c( "Bacillariophyta" , "Chrysophyceae","Dictyochophyceae","Raphidophyceae", "Bicosoecida",   "Phaeophyceae"))
+
+ ggplot(stram_dropouts_by_season_df, aes(x = mean_drop_prop, y = mean_read_prop)) +
+  geom_line(aes(color = phylum)) + 
+  geom_point(aes(color = phylum, shape = season), size = 3) +
+    scale_color_brewer(palette = "Paired") + 
+    theme_classic()  + 
+  labs(col = "Phylum", x = "Stochastic Dropout Rate", y = "Mean Read Proportion", 
+       title ="averaged across phylum")  
+
+ 
+# By phyl with mean read prop and prop drops, but use means for asvs not mean across kingdom
+
+phyl_asv_dropouts_by_season_df <- binary_dropouts_annotated_withPropDrops %>% group_by(phylum, Hash) %>% 
+  summarise(mean_read_prop = mean(read_proportion), mean_drop_prop = mean(PropDropsWithinHashBottle)) %>% 
+  filter(phylum %in% taxa_list)
+
+phyl_asv_dropouts_by_season_df$phylum <- factor(phyl_asv_dropouts_by_season_df$phylum,levels = c( "Bacillariophyta" , "Chrysophyceae","Dictyochophyceae","Raphidophyceae", "Bicosoecida",   "Phaeophyceae"))
+ 
+ ggplot(phyl_asv_dropouts_by_season_df, aes(x = mean_drop_prop, y = mean_read_prop)) +
+  geom_point(aes(color = phylum), size = 1, position = "jitter") +
+    scale_color_brewer(palette = "Paired") + 
+    theme_classic()  + 
+  labs(col = "Phylum", x = "Stochastic Dropout Rate", y = "Mean Read Proportion", title ="one point per asv") 
+ 
+ 
+ # By kingdom with mean read prop and prop drops, but use means for bottles not mean across kingdom
+phyl_bot_dropouts_by_season_df <- binary_dropouts_annotated_withPropDrops %>% group_by(phylum, bottle) %>% 
+  summarise(mean_read_prop = mean(read_proportion), mean_drop_prop = mean(PropDropsWithinHashBottle)) %>% 
+  filter(phylum %in% taxa_list)
+
+phyl_bot_dropouts_by_season_df$phylum <- factor(phyl_bot_dropouts_by_season_df$phylum,levels = c( "Bacillariophyta" , "Chrysophyceae","Dictyochophyceae","Raphidophyceae", "Bicosoecida",   "Phaeophyceae"))
+ 
+ ggplot(phyl_bot_dropouts_by_season_df, aes(x = mean_drop_prop, y = mean_read_prop)) +
+  geom_point(aes(color = phylum), size = 1, position = "jitter") +
+    scale_color_brewer(palette = "Paired") + 
+    theme_classic()  + 
+  labs(col = "Phylum", x = "Stochastic Dropout Rate", y = "Mean Read Proportion", title ="one point per bottle") 
+ 
+ 
+```
+
+
+
+
+
+
+
+```{r Stramenopiles phylum plot: bloom/nobloom arrow plot}
+
+binary_dropouts_annotated_stram <- binary_dropouts_annotated %>% 
+                        filter(kingdom == "Stramenopiles") %>% 
+                       mutate(season = case_when(month == "01" ~ "No_Bloom",
+                                                 month == "03" ~ "No_Bloom",
+                                                 month == "10" ~ "No_Bloom",
+                                                  month == "11" ~ "No_Bloom",
+                                                 TRUE~ "Bloom")) 
+
+make_seasonal_df_phyl <- function(wide_df, taxa_list, taxa_level){
+  
+  seasonal_drops <- data.frame(taxa_groups = taxa_list, "mean_read_depth_sp" = NA,
+                               "mean_read_depth_fall" = NA, "Bloom"=NA, "No_Bloom"=NA)
+
+  for(i in 1:length(taxa_list)){
+    tax <- taxa_list[i]
+    
+     df <- wide_df %>%
+      pivot_longer(cols = c("tech1", "tech2", "tech3"), names_to = "tech", values_to = "reads") %>%       group_by(bottle) %>% mutate(tot_reads = sum(reads)) %>% group_by(bottle, phylum) %>% read
+      
+     df <- df %>%
+      filter(.data[[taxa_level]] %in% tax)
+    
+    for(k in colnames(seasonal_drops)[-c(1:3)]){
+      print(k)
+      
+      df_sm <- df %>%
+        filter(.data[["season"]] %in% k) 
+      
+      drop_rows <- sum(df_sm$reads == 0)
+      print(drop_rows)
+      total_rows <- nrow(df_sm)
+      print(total_rows)
+      calc_prop <- drop_rows / total_rows
+      seasonal_drops[i, k] <- calc_prop
+        if(k == "No_Bloom"){ seasonal_drops[i, "mean_read_depth_fall"] <- mean(df_sm$mean_reads) }
+      if(k == "Bloom"){ seasonal_drops[i, "mean_read_depth_sp"] <- mean(df_sm$mean_reads) }
+      }
+     
+  }
+
+  return(seasonal_drops)
+  
+}
+
+dropouts_by_season_df <- make_seasonal_df_phyl(binary_dropouts_annotated_stram, c( "Bacillariophyta" , "Chrysophyceae","Dictyochophyceae","Raphidophyceae", "Bicosoecida",      
+                                                                          "Phaeophyceae"), "phylum")
+colnames(dropouts_by_season_df) <- c("taxa_groups", "readDepth_1" , "readDepth_2" , "propDrop_1", "propDrop_2")
+
+dropouts_by_season_df <- dropouts_by_season_df  %>%
+  pivot_longer(
+    everything(),
+    names_to = c(".value", "Season"),
+    names_sep = "_") %>% fill(taxa) %>% 
+    na.omit() %>% mutate(Season = case_when(Season == 1 ~ "Bloom",
+                                            Season == 2 ~ "No_Bloom"))
+
+
+dropouts_by_season_df$Season <- factor(dropouts_by_season_df$Season, levels = c("Bloom", "No_Bloom"))
+
+
+dropouts_by_season_df$taxa <- factor(dropouts_by_season_df$taxa,levels = c("Dictyochophyceae", "Bacillariophyta", "Raphidophyceae", "Chrysophyceae", "Bicosoecida", "Phaeophyceae"))
+
+dropouts_by_season_df$Season <- factor(dropouts_by_season_df$Season,levels = c("No_Bloom", "Bloom"))
+
+       
+ ggplot(dropouts_by_season_df, aes(x = propDrop, y = readDepth)) +
+  geom_line(aes(color = taxa)) + 
+  geom_point(aes(color = taxa, shape = Season), size = 3) +
+    scale_color_brewer(palette = "Paired") + 
+    theme_classic()  + 
+  labs(col = "Phylum", x = "Stochastic Dropout Rate", y = "Mean Read Depth")  
+ 
+     
+```
+
+```{r Stramenopiles phylum plot: by asv}
+# "Could make a plot with each ASV as a separate point" 
+
+make_df_phyl <- function(wide_df, taxa_list, taxa_level){
+  
+  seasonal_drops <- data.frame(taxa_groups = taxa_list, "mean_read_depth_sp" = NA,
+                               "mean_read_depth_fall" = NA, "Bloom"=NA, "No_Bloom"=NA)
+
+  for(i in 1:length(taxa_list)){
+    tax <- taxa_list[i]
+    
+     df <- wide_df %>%
+      pivot_longer(cols = c("tech1", "tech2", "tech3"), names_to = "tech", values_to = "reads") %>%
+      filter(.data[[taxa_level]] %in% tax)
+    
+    for(k in colnames(seasonal_drops)[-c(1:3)]){
+      print(k)
+      
+      df_sm <- df %>%
+        filter(.data[["season"]] %in% k) 
+      
+      drop_rows <- sum(df_sm$reads == 0)
+      print(drop_rows)
+      total_rows <- nrow(df_sm)
+      print(total_rows)
+      calc_prop <- drop_rows / total_rows
+      seasonal_drops[i, k] <- calc_prop
+        if(k == "No_Bloom"){ seasonal_drops[i, "mean_read_depth_fall"] <- mean(df_sm$mean_reads) }
+      if(k == "Bloom"){ seasonal_drops[i, "mean_read_depth_sp"] <- mean(df_sm$mean_reads) }
+      }
+     
+  }
+
+  return(seasonal_drops)
+  
+}
+
+
+
+
+```
+
+
+
